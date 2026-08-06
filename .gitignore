@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Build-Ergebnis (nicht committen, siehe docs/adr/0001-deterministik-first.md)
+dbt/
