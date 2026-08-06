@@ -36,7 +36,10 @@ agentic_migration/
 ├─ opencode.jsonc             # Runner-Config: Agent "migrator", Permission-Gates, Modell
 ├─ docs/
 │  ├─ adr/0001-deterministik-first.md
-│  └─ systemkontext.md       # fachlicher Originalkontext (Kopie aus without_macros/agentic)
+│  ├─ systemkontext.md       # fachlicher Originalkontext (Kopie aus without_macros/agentic)
+│  └─ datenlage.md           # Datenbestand-Inventar + externe Bestätigung der Triage
+├─ data/pd/*.csv              # Delta-Importe (DATA-Schicht), 3 Monate — s. docs/datenlage.md
+├─ learning/pd/                # Dimensionen, Referenzwerte (G3), Star-Schema — s. docs/datenlage.md
 ├─ tools/
 │  ├─ extract.py             # P0–P4: Platzhalter, GO-Split, Parse, Lineage, Transpile-Vorschlag
 │  ├─ gate.sh                 # TODO Session 3: G0/G1, normalisierter Fehlerkanal

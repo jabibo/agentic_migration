@@ -13,6 +13,7 @@ das durch Promotion in Code wieder schrumpft statt zu wachsen.
 | Wie ist Qwen technisch angebunden (Runner, Permissions)? | [opencode.jsonc](opencode.jsonc) — Agent `migrator`, Modell-ID noch offen (siehe Stand unten) |
 | Fachlicher Originalkontext (Referenzverfahren BPS/PD) | [docs/systemkontext.md](docs/systemkontext.md) |
 | Aktueller Stand: wieviel ist deterministisch (Triage A/B/C)? | `make extract` → [reports/triage.md](reports/triage.md) |
+| Woher kommen Test-/Referenzdaten (Dimensionen, Deltas, Erwartungswerte)? | [docs/datenlage.md](docs/datenlage.md) |
 
 ## Schnellstart
 
