@@ -1,0 +1,48 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // TODO (Mensch, nicht Agent): exakte OpenRouter-Modell-ID eintragen, sobald
+  // `opencode providers login -p openrouter` gelaufen ist und
+  // `opencode models openrouter | grep -i qwen` das echte Modell zeigt.
+  // Platzhalter unten NICHT ungeprueft verwenden.
+  "model": "openrouter/qwen/qwen3.6-TODO",
+
+  "instructions": ["AGENTS.md"],
+
+  // Bewusst KEIN "skills" Key: opencodes Skill-Tool scannt **/SKILL.md und
+  // laesst das Modell autonom entscheiden, wann es triggert. Unsere
+  // skills/*.md folgen einer anderen, bewusst gewaehlten Konvention
+  // (flache Themendateien, manuell per `rg` aus AGENTS.md abgerufen nach
+  // Triage-Klasse -> Skill-Tabelle) -- siehe skills/README.md und
+  // docs/adr/0001-deterministik-first.md. Beides zu mischen waere
+  // widerspruechlich (zwei Retrieval-Pfade fuer dieselbe Datei).
+
+  "default_agent": "migrator",
+
+  "agent": {
+    "migrator": {
+      "description": "Prüfling: migriert ein T-SQL-Objekt (Klasse B/C) 1:1 nach dbt-Exasol, geführt durch AGENTS.md.",
+      "mode": "primary",
+      "permission": {
+        // Harness-Schutz technisch durchgesetzt (nicht nur Konvention +
+        // nachtraeglicher git-diff-Check, siehe docs/adr/0001-deterministik-first.md).
+        // Reihenfolge relevant: letzte passende Regel gewinnt.
+        "edit": {
+          "*": "allow",
+          "source_references/**": "deny",
+          "tools/**": "deny",
+          "skills/**": "deny",
+          "docs/**": "deny",
+          "reports/**": "deny",
+          "ledger.jsonl": "deny",
+          "AGENTS.md": "deny",
+          "CLAUDE.md": "deny",
+          "opencode.jsonc": "deny",
+          "dbt/**": "allow",
+          "memory/rules/**": "allow"
+        },
+        "bash": "ask"
+      }
+    }
+  }
+}

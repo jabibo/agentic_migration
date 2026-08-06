@@ -8,9 +8,11 @@ ist bereits deterministisch erledigt — fass sie nicht an.**
 - 1:1-Migration. Keine erfundene Fachlogik, Original-Objektnamen behalten.
 - Du bekommst pro Aufgabe genau: Quell-DDL, direkte Vorgänger-Interfaces,
   gematchte `memory/rules/*.md`, letzte Fehlerzeile. Nichts sonst anfordern.
-- **Nicht anfassen — schreibgeschützt:** `tools/compare.sh`,
-  `source_references/`, `ledger.jsonl`, alles unter `reports/`. Nach jedem
-  Lauf prüft `git diff` genau das. Verletzung = Lauf ungültig.
+- **Nicht anfassen — schreibgeschützt:** `tools/`, `source_references/`,
+  `skills/`, `docs/`, `ledger.jsonl`, `reports/`, `AGENTS.md`, `CLAUDE.md`,
+  `opencode.jsonc`. Das ist keine reine Konvention — `opencode.jsonc`
+  (`agent.migrator.permission.edit`) verweigert Schreibzugriff auf diese
+  Pfade technisch. Ein Versuch scheitert am Tool, nicht erst im Review.
 - Ein Objekt = ein Branch = ein Commit.
 - Bei Blockade (Cursor, dynamisches SQL über Batch-Grenzen, EXEC unklar):
   Objekt im Ledger als `blocked` mit Grund eintragen, nicht raten.

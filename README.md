@@ -10,6 +10,7 @@ das durch Promotion in Code wieder schrumpft statt zu wachsen.
 | Substanz/Entscheidungen (warum so gebaut) | [docs/adr/0001-deterministik-first.md](docs/adr/0001-deterministik-first.md) |
 | Wie arbeite ich hier als Bauherr (Claude Code)? | [CLAUDE.md](CLAUDE.md) |
 | Wie arbeitet der Prüfling (Qwen)? | [AGENTS.md](AGENTS.md) — bewusst ≤ 60 Zeilen |
+| Wie ist Qwen technisch angebunden (Runner, Permissions)? | [opencode.jsonc](opencode.jsonc) — Agent `migrator`, Modell-ID noch offen (siehe Stand unten) |
 | Fachlicher Originalkontext (Referenzverfahren BPS/PD) | [docs/systemkontext.md](docs/systemkontext.md) |
 | Aktueller Stand: wieviel ist deterministisch (Triage A/B/C)? | `make extract` → [reports/triage.md](reports/triage.md) |
 

@@ -33,6 +33,7 @@ A/B/C selbst als eigene Kernaussage („x % ist beweisbar deterministisch").
 agentic_migration/
 ├─ CLAUDE.md                 # diese Datei
 ├─ AGENTS.md                 # für Qwen — ≤ 60 Zeilen, hart begrenzt
+├─ opencode.jsonc             # Runner-Config: Agent "migrator", Permission-Gates, Modell
 ├─ docs/
 │  ├─ adr/0001-deterministik-first.md
 │  └─ systemkontext.md       # fachlicher Originalkontext (Kopie aus without_macros/agentic)
@@ -75,6 +76,24 @@ Ansatz nicht.
    Vermutung.
 5. Übergabe an Qwen: OpenCode gegen das Repo als Working Directory, ein
    Objekt = ein Branch = ein Commit.
+
+**Runner-Entscheidung (statt `cline`):** [opencode.jsonc](opencode.jsonc)
+definiert den Agenten `migrator`. Grund für den Wechsel: OpenCodes
+Permission-System (`agent.migrator.permission.edit`) erzwingt den
+Read-only-Schutz technisch (Glob-Pattern, „letzte passende Regel
+gewinnt") statt ihn nur als Konvention zu dokumentieren und per
+`git diff` nachträglich zu prüfen — im alten `without_macros/agentic`-
+Repo (cline) war das nur eine `AGENTS.md`-Regel. Offen, bevor Session 5
+laufen kann:
+- `opencode providers login -p openrouter` (interaktiv, macht der Mensch —
+  API-Key-Eingabe ist kein Agent-Schritt).
+- Danach `opencode models openrouter | grep -i qwen` und die echte
+  Modell-ID in `opencode.jsonc` → `model` eintragen (Platzhalter
+  `qwen3.6-TODO` ist absichtlich ungültig, damit ein vergessener Eintrag
+  hart auffällt statt still falsch zu laufen).
+- Verifizieren, dass der Lauf tatsächlich Qwen trifft (nicht einen
+  Default) — `opencode debug agent migrator` zeigt die aufgelöste Config;
+  Session-Log/Export (`opencode export`) sollte das Modell nennen.
 
 ## Betriebsregeln
 
