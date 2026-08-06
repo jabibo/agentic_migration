@@ -219,3 +219,14 @@ __marimo__/
 
 # Build-Ergebnis (nicht committen, siehe docs/adr/0001-deterministik-first.md)
 dbt/
+
+# Test-/Referenzdaten (Delta-CSVs, Dimensionen, Erwartungswerte) -- nicht
+# committen, per exapump-Ladepfad aus dem Dateisystem geladen, siehe
+# docs/datenlage.md und tools/load_reference_data.sh
+data/
+learning/
+
+# Ausnahme: die generische Python-Regel "lib/" (Zeile 17) trifft versehentlich
+# auch tools/lib/ (unser Shell-Helper, kein Python-Package-Verzeichnis).
+!tools/lib/
+!tools/lib/**

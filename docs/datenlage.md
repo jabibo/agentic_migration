@@ -98,8 +98,12 @@ das stützt die Triage-Methodik selbst, nicht nur das Ergebnis.
    `without_macros/agentic/skills/loading/exapump-load-sources.md`,
    Profil `napc`), G3-Vergleich hat echte Erwartungswerte
    (`learning/pd/referenz/`) statt nur Schema-Struktur-Checks.
-3. **Vor Session 3 klären:** 202403-Delta-Lücke (1.1), und ob
-   `learning/pd/dimensions/` + `learning/pd/referenz/` ins Repo committet
-   werden (aktuell `?? ` bei `git status` — weder getrackt noch
-   `.gitignore`d) oder bewusst lokal/außerhalb Git bleiben (Parquet-Binärdaten
-   in Git sind meist die falsche Wahl — eher exapump-Ladepfad + `.gitignore`).
+3. **Erledigt:** `data/` und `learning/` sind jetzt `.gitignore`d (nicht
+   committet). Ladepfad: [tools/load_reference_data.sh](../tools/load_reference_data.sh)
+   (`make load-data MONAT=<YYYYMM>`, exapump-Profil `napc`) — Schema-Konvention
+   per [tools/lib/monatsschema.sh](../tools/lib/monatsschema.sh) (portiert aus
+   `without_macros/agentic/scripts/lib/monatsschema.sh`, unverändert). Getestet
+   für 202312 (25 Dimensions- + 5 Delta-Tabellen, Rowcounts stimmen: 500/500
+   Zeilen `bi_delta_fc`) und 202401.
+4. **Weiterhin offen:** 202403-Delta-Lücke (1.1) — vor Nutzung dieses Monats
+   in Gates klären, ob Absicht oder fehlender Export.

@@ -1,10 +1,22 @@
-.PHONY: extract transpile gate compare report clean
+.PHONY: extract transpile gate compare report clean load-data load-dims load-delta
 
 PY ?= python3
+MONAT ?= 202312
 
 # P0-P4, kein LLM, kein DB-Roundtrip. Ergebnis: reports/triage.md (+.json, lineage.jsonl).
 extract:
 	$(PY) tools/extract.py
+
+# Test-/Referenzdaten nach Exasol (exapump, Profil napc), siehe docs/datenlage.md.
+# MONAT=<YYYYMM> ueberschreiben, Default 202312. Voraussetzung fuer G1b/G3.
+load-data:
+	bash tools/load_reference_data.sh $(MONAT)
+
+load-dims:
+	bash tools/load_reference_data.sh $(MONAT) --dims-only
+
+load-delta:
+	bash tools/load_reference_data.sh $(MONAT) --delta-only
 
 # Session 3 (siehe CLAUDE.md, Sessionfolge): Klasse-B/C-Objekte an Qwen/OpenCode
 # uebergeben. Existiert noch nicht -- Klasse A ist bereits per extract.py (P4)
