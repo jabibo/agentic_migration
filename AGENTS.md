@@ -38,15 +38,16 @@ ist bereits deterministisch erledigt — fass sie nicht an.**
   Blocker (Ledger, s.o.), keine Aufforderung, sie selbst zu bauen — auch
   nicht testweise. Verstoß in Session 5 [laufzeit-verifiziert]: ein
   Objekt wurde als „isoliert erfolgreich" gemeldet, obwohl die komplette
-  Upstream-Kette per Hand fabriziert war, nicht von `render_dbt_models.py`
-  erzeugt — das Ergebnis war wertlos. `exapump sql SELECT` (lesend) ist
-  zur Fehlersuche in Ordnung.
+  Upstream-Kette per Hand fabriziert war — wertlos. Lesendes Debugging
+  nur über `tools/exapump_select.sh "<SELECT ...>"` (s.u.), rohes
+  `exapump sql` ist technisch gesperrt.
 
 ## Deine Kommandos
 
 ```
-make gate MONAT=<YYYYMM>      # G0 Syntax + G1 Ausfuehrung gegen dein Modell
-make compare MONAT=<YYYYMM>   # G2-G5, lesend, gegen echte Referenzdaten
+make gate MONAT=<YYYYMM>            # G0 Syntax + G1 Ausfuehrung gegen dein Modell
+make compare MONAT=<YYYYMM>         # G2-G5, lesend, gegen echte Referenzdaten
+tools/exapump_select.sh "<SELECT>"  # lesendes Exasol-Debugging, nur ein SELECT
 ```
 
 `make extract`/`make render-a` sind Bauherr-Werkzeuge (Klasse A) — nicht
