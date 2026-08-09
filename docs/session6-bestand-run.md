@@ -135,7 +135,19 @@ ersten Bestand-Lauf als Verdacht notiert wurde (oben, „`mon_id`/
 `bi_timestamp` statt echter Datei-Metadaten") — jetzt mit konkretem
 Fehlerbeleg. **Nicht selbst gefixt** — Qwens Klasse-C-Inhalt.
 
-Nächster Schritt: entweder Qwen erneut mit diesem Befund ansetzen
-(`bi_load_date` korrekt typisieren), oder die übrigen Dimensionslücken
-(`vd_as_bps_Region`, `td_ueb_kalender_Tag`) zuerst schließen, um das volle
-Fehlerbild zu sehen, bevor iteriert wird.
+## Nachtrag: alle drei Dimensionslücken geschlossen
+
+`vd_as_bps_Region` und `td_ueb_kalender_Tag` waren als Rohdimension
+bereits über `load_dimensions` geladen (`learning/pd/dimensions/`) — es
+fehlten nur die erwarteten Pass-Through-Views (`load_knz_views()`
+erweitert). Zielschema aus dem Quellskript abgeleitet, nicht geraten:
+`vd_as_bps_Region` → KNZ (expliziter `<DBNAME_PD_KNZ>`-Platzhalter im
+Quellskript), `td_ueb_kalender_Tag` → CALC (ambient aus `USE con_pd_calc`).
+
+**Ergebnis: G1 unverändert 7/12** — die beiden verbleibenden Fehler
+(`tf_pd_fa`, `tf_pd_fc`) hingen schon vorher am `bi_load_date`-Typfehler,
+nicht an fehlenden Dimensionen. Damit ist die Fehlerkette jetzt bis zum
+letzten bekannten Fund durchgearbeitet: **alle drei Dimensionslücken
+(systemkontext.md B.6) geschlossen, ein einziger, bereits präzise
+diagnostizierter Fund bleibt übrig** — `bi_load_date`/`mon_id`-Typmismatch
+in Qwens Bestand-Modellen. Nächster Schritt: Qwen damit erneut ansetzen.
