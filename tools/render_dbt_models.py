@@ -138,7 +138,7 @@ def render_select_body(
         if name not in FUNC_MAP:
             continue
         args = [
-            '"%s"' % a.sql(dialect="exasol").replace("\\", "\\\\").replace('"', '\\"')
+            '"%s"' % a.sql(dialect="exasol", identify=True).replace("\\", "\\\\").replace('"', '\\"')
             for a in node.expressions
         ]
         jinja = "{{ %s(%s) }}" % (FUNC_MAP[name], ", ".join(args))
@@ -151,9 +151,18 @@ def render_select_body(
             jinja = "{{ var('%s') }}" % month_range_vars[node.name]
             node.replace(exp.column(new_ph(jinja)))
 
-    sql = select.sql(dialect="exasol", pretty=True)
+    # identify=True: alle Bezeichner quoted -- konsistent mit Qwens Klasse-C-
+    # Konvention (T-SQL [bracket]-Bezeichner 1:1 als quoted-lowercase uebernommen).
+    # Ohne das foldet Exasol unquotierte Bezeichner (auch unsere Platzhalter-
+    # Aliase) auf Grossschreibung -- bricht an Klasse-C-Grenzen, wo die
+    # Gegenseite quoted-lowercase erwartet [laufzeit-verifiziert: Session 6,
+    # "F.PD_DNST_NR not found" gegen Qwens "pd_dnst_nr"].
+    sql = select.sql(dialect="exasol", pretty=True, identify=True)
     for ph, jinja in placeholders.items():
-        sql = sql.replace(ph, jinja)
+        # identify=True quotet auch den Platzhalter-Token selbst ("XJINJAX0X")
+        # -- Anfuehrungszeichen mit entfernen, sonst wird der Jinja-Aufruf
+        # zum literalen String statt zur Tabellen-/Spaltenreferenz.
+        sql = sql.replace(f'"{ph}"', jinja).replace(ph, jinja)
     return fix_exasol_quirks(sql), external_sources
 
 
