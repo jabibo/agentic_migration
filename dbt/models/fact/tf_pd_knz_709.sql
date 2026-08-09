@@ -3,7 +3,6 @@
 {{ config(schema=schema_for('fact')) }}
 
 SELECT
-  1 AS "Anzahl",
   "tt"."pd_auftr_id",
   "tt"."org_id",
   "tt"."pd_schul_abschl",

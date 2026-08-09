@@ -8,10 +8,7 @@ SELECT
   fc."pd_schul_abschl",
   COALESCE(fc."pd_geschlecht", 29004) AS "pd_geschlecht",
   {{ behinderung_bit("fc.\"pd_beh_1\"", "fc.\"pd_beh_2\"", "fc.\"pd_beh_3\"", "fc.\"pd_beh_4\"") }} AS "pd_beh_key",
-  CAST(LEFT(
-    CAST(CAST(TO_CHAR(fc."pd_abschl_dat", 'YYYYMMDD') AS VARCHAR(8)) AS LONG VARCHAR),
-    6
-  ) AS INT) AS "mon_id",
+  EXTRACT(YEAR FROM fc."pd_abschl_dat") * 100 + EXTRACT(MONTH FROM fc."pd_abschl_dat") AS "mon_id",
   fc."pd_abschl_art",
   fc."bps_bild_abs",
   fc."pd_rks_id",
@@ -19,7 +16,4 @@ SELECT
 FROM {{ ref('tf_pd_fc') }} AS fc
 WHERE fc."pd_veranl_stl" <> 23006
   AND fc."pd_fehl_typ" = 0
-  AND CAST(LEFT(
-    CAST(CAST(TO_CHAR(fc."pd_abschl_dat", 'YYYYMMDD') AS VARCHAR(8)) AS LONG VARCHAR),
-    6
-  ) AS INT) BETWEEN {{ knz_erster_monat(709) }} AND {{ knz_letzter_monat(709) }}
+  AND EXTRACT(YEAR FROM fc."pd_abschl_dat") * 100 + EXTRACT(MONTH FROM fc."pd_abschl_dat") BETWEEN {{ knz_erster_monat(709) }} AND {{ knz_letzter_monat(709) }}
