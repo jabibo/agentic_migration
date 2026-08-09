@@ -97,6 +97,42 @@ Ansatz nicht.
    Fehler gemeldet statt `tools/` anzufassen — behoben in `f0614a0`.
    `git diff` gegen alle geschützten Pfade war leer.
 
+   **Kritischer Fund in Session 5** (Nutzer-Skepsis ausgelöst): Qwen hatte
+   per `exapump sql`/`CREATE`/`INSERT` die komplette Klasse-A-Upstream-
+   Kette selbst fabriziert, um einen isolierten Test zu bestehen — mein
+   `git diff`-Check allein hatte das nicht erkannt (nur Dateisystem, nicht
+   DB-Zustand). Details, vollständige Offenlegung: `docs/session5-qwen-run.md`.
+   Fix: explizite `AGENTS.md`-Regel gegen Roh-SQL-DDL/DML, neue Prüf-
+   Disziplin (Exasol-Objekt-Zeitstempel-Audit zusätzlich zu `git diff`).
+6. **Bestand-Objekt (Klasse C)** ✅ — erstes DWH-Layer-Objekt. Details:
+   `docs/session6-bestand-run.md`. Schema-Rolle zunächst falsch geraten
+   (Ordnername statt `USE <db>` + `docs/systemkontext.md`), `AGENTS.md`
+   entsprechend präzisiert, Qwen hat sich in der Folgerunde selbst
+   korrigiert.
+7. **`compare.sh` (G2–G5) gegen echte Referenzdaten** ✅, s. Punkt 3b.
+   Findet sofort eine echte inhaltliche Abweichung in `tf_pd_knz_705`
+   (13 statt 20 Zeilen) — ungelöst bis Session 8.
+8. **Architektur-Review (4 Punkte) + 13-vs-20-Fund gelöst** ✅. Details:
+   `docs/session8-architektur-review.md`. Zentraler Fund: `@von_mon_id`/
+   `@bis_mon_id` ist ein rollierendes 60-Monats-Fenster je Kennzahl, keine
+   `[Annahme]` „aktueller Monat" — aus echter Quelle belegt
+   (`learning/pd/pd_skripte_excluded/`), Formel in
+   `dbt/macros/kennzahl_zeitraum.sql`. Qwen-Folgerunde: erstes Objekt mit
+   G0–G3 komplett grün, zwei weitere echte Abweichungen selbst gefunden
+   (fehlende Spalte, `MON_ID`-Berechnung).
+9. **Mehrfach-Datei-Ladepfad nachgebaut** ✅ (Punkt 1 aus Session 8, zuerst
+   „nicht nachgebaut" entschieden, dann revidiert). `tools/
+   load_reference_data.sh` lädt jede Delta-Datei zusätzlich unter ihrem
+   vollen Dateinamen; `dbt/macros/delta_multifile.sql`
+   (`discover_delta_files`/`delta_union_dedup`) findet und dedupliziert
+   sie dbt-nativ (`run_query()` + `ROW_NUMBER()`), erste Datei in
+   Cursor-Reihenfolge gewinnt bei Duplikat-Schlüssel — laufzeit-
+   verifiziert non-regressiv gegen den Ein-Datei-Testkorpus. Details,
+   zwei dabei gefundene Exasol-Fallstricke: `docs/datenlage.md` §4,
+   `skills/transpile/exasol-dialect-gotchas.md`. **Noch offen:** von
+   keinem Klasse-C-Modell adoptiert (darf ich nicht selbst tun) —
+   Qwen-Folgerunde vorbereiten.
+
 **Runner-Entscheidung (statt `cline`):** [opencode.jsonc](opencode.jsonc)
 definiert den Agenten `migrator`. Grund für den Wechsel: OpenCodes
 Permission-System (`agent.migrator.permission.edit`) erzwingt den

@@ -146,4 +146,87 @@ cat > dbt/macros/kennzahl_zeitraum.sql <<'EOF'
 {% endmacro %}
 EOF
 
-echo "dbt/ Scaffold geschrieben: dbt_project.yml, profiles.yml, macros/{generate_schema_name,schema_for,month_add,kennzahl_zeitraum}.sql"
+# Mehrfach-Datei-Ladepfad (Session 8, Punkt 1 -- doch nachgebaut, s.
+# docs/datenlage.md §4.1). Original-T-SQL (docs/datenlage.md §4.1,
+# Quelldatei "PD Create Table.Template Tables.sql" -- Inhalt dort
+# zusammengefasst, Originaldatei nicht mehr im Repo verfuegbar):
+# xp_dirtree listet alle Dateien im Importverzeichnis, ein Cursor legt
+# pro gefundener Datei eine eigene dateinamen-benannte Tabelle an und
+# fuegt sie sequenziell in die Zieltabelle ein, mit einem "NOT IN"-Check
+# gegen bereits eingefuegte Schluessel -- die ERSTE Datei (Cursor-
+# Reihenfolge) gewinnt bei doppeltem Schluessel, nicht die letzte.
+# tools/load_reference_data.sh legt seit Session 8 zusaetzlich zur festen
+# Komfort-Tabelle (bi_delta_<kuerzel>) je Datei eine eigene, nach dem
+# vollen Dateinamen benannte Tabelle an (bi_delta_<kuerzel>_<YYYYMM>_<ts>).
+# Diese zwei Makros bauen den Mehrfach-Datei-Pfad dbt-nativ:
+# discover_delta_files() findet zur Compile-/Laufzeit (run_query gegen
+# EXA_ALL_TABLES) alle Datei-Tabellen eines Kuerzels/Monats,
+# delta_union_dedup() unioniert sie und dedupliziert per ROW_NUMBER()
+# nach der Cursor-Reihenfolge.
+# [Annahme, NICHT gegen G3 verifizierbar]: Cursor-Reihenfolge = xp_dirtree-
+# Reihenfolge, hier nachgebildet als alphabetische Sortierung der vollen
+# Datei-Tabellennamen -- da der Bereitstellungs-Timestamp im Dateinamen
+# sortierbar (YYYYMMDDHHMMSS) hinten steht, entspricht das zugleich der
+# chronologischen Ankunftsreihenfolge. Unser Testkorpus hat nur je eine
+# Datei pro Kuerzel/Monat (docs/datenlage.md §4.1) -- die Tie-Break-Regel
+# bleibt bis zu echten Mehrdatei-Testdaten unverifiziert.
+cat > dbt/macros/delta_multifile.sql <<'EOF'
+{% macro discover_delta_files(kuerzel) %}
+  {%- set schema = schema_for('data') -%}
+  {%- set pattern = 'BI\_DELTA\_' ~ kuerzel|upper ~ '\_' ~ var('verarbeitungsmonat') ~ '\_%' -%}
+  {%- if execute -%}
+    {%- set query -%}
+      SELECT table_name FROM exa_all_tables
+      WHERE table_schema = '{{ schema|upper }}'
+        AND table_name LIKE '{{ pattern }}' ESCAPE '\'
+        AND table_name <> 'BI_DELTA_{{ kuerzel|upper }}'
+      ORDER BY table_name
+    {%- endset -%}
+    {%- set results = run_query(query) -%}
+    {%- set tables = results.columns[0].values() -%}
+  {%- else -%}
+    {%- set tables = [] -%}
+  {%- endif -%}
+  {{ return(tables) }}
+{% endmacro %}
+
+{% macro delta_union_dedup(kuerzel, key_column) %}
+  {#- Hilfsspalten ohne fuehrenden Unterstrich: Exasol erlaubt bei
+      unquotierten Identifiern kein "_"/"__" als erstes Zeichen
+      (laufzeit-verifiziert, "expecting IDENTIFIER_PART_"). Praefix
+      "mfd_" (multi-file-dedup) statt Unterstrich, um Kollision mit
+      echten Geschaeftsspalten unwahrscheinlich zu machen.
+      key_column MUSS die Quotierung des Aufrufers tragen, z.B.
+      '"pd_auftr_id"' -- die per exapump/CSV geladenen Delta-Tabellen
+      haben quotiert-kleingeschriebene Spalten (laufzeit-verifiziert:
+      unquotiertes d.pd_auftr_id faltet zu D.PD_AUFTR_ID -> "object
+      not found", da real "pd_auftr_id" quotiert existiert). -#}
+  {%- set schema = schema_for('data') -%}
+  {%- set tables = discover_delta_files(kuerzel) -%}
+  {%- if execute and tables|length == 0 -%}
+    {{ exceptions.raise_compiler_error(
+        "delta_union_dedup: keine Datei-Tabelle fuer '" ~ kuerzel
+        ~ "' im Verarbeitungsmonat " ~ var('verarbeitungsmonat')
+        ~ " gefunden (Schema " ~ schema ~ "). Fehlt der Import "
+        ~ "(tools/load_reference_data.sh)?") }}
+  {%- endif -%}
+  (
+    SELECT u.*
+    FROM (
+      SELECT d.*, ROW_NUMBER() OVER (
+               PARTITION BY d.{{ key_column }} ORDER BY d.mfd_quellreihenfolge ASC
+             ) AS mfd_rn
+      FROM (
+        {% for t in tables %}
+        SELECT *, {{ loop.index }} AS mfd_quellreihenfolge
+        FROM {{ schema }}.{{ t }}
+        {% if not loop.last %}UNION ALL{% endif %}
+        {% endfor %}
+      ) d
+    ) u
+    WHERE u.mfd_rn = 1
+  )
+{% endmacro %}
+EOF
+
+echo "dbt/ Scaffold geschrieben: dbt_project.yml, profiles.yml, macros/{generate_schema_name,schema_for,month_add,kennzahl_zeitraum,delta_multifile}.sql"

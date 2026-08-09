@@ -116,18 +116,58 @@ OLAP-View-Prozedur). Bewusst dokumentiert, nicht überall sofort
 umgesetzt — s. jeweils „Konsequenz".
 
 **1. CSV→DB-Laden ist mehrdateifähig, nicht single-file.** Laut `PD
-Create Table.Template Tables.sql`: `xp_dirtree` listet alle Dateien im
-Import-Verzeichnis, ein Cursor iteriert über **jede gefundene Datei**
-und legt pro Datei eine eigene, nach dem exakten Dateinamen benannte
-Tabelle an. `PD LOAD.Bestandsuebernahme.sql` (Schritt 2) liest aus genau
+Create Table.Template Tables.sql` (Datei nicht mehr im Repo verfügbar,
+Inhalt hier aus der damaligen Sichtung zusammengefasst): `xp_dirtree`
+listet alle Dateien im Import-Verzeichnis, ein Cursor iteriert über
+**jede gefundene Datei** und legt pro Datei eine eigene, nach dem exakten
+Dateinamen benannte Tabelle an, mit `NOT IN`-Check gegen bereits
+eingefügte Schlüssel (erste Datei in Cursor-Reihenfolge gewinnt bei
+Duplikat). `PD LOAD.Bestandsuebernahme.sql` (Schritt 2) liest aus genau
 diesen dateispezifischen Tabellen, nicht aus einer festen `bi_delta_fc`.
-Pro Verarbeitungslauf können also mehrere FC-Dateien mit unterschiedlichen
-Zeitständen vorliegen. **Konsequenz:** `tools/load_reference_data.sh`
-bildet das bewusst vereinfacht ab (eine feste Datei pro Typ/Monat, kein
-Cursor). Für unseren dreimonatigen, einzeldateiigen Testkorpus ausreichend
-— bei echten Mehrdatei-Szenarien nicht repräsentativ. Nicht nachgebaut
-(Aufwand/Nutzen für den PoC nicht gerechtfertigt, s. ADR „so wenig Code
-wie möglich").
+
+**Nachträglich doch nachgebaut** (Session 9 — ursprüngliche Entscheidung
+"nicht nachgebaut" revidiert, Nutzer: „ich bin mir nicht sicher ob wir
+Punkt 1 nicht nachbauen müssen"): `tools/load_reference_data.sh`
+`load_delta()` lädt seit Session 9 jede gefundene Delta-Datei **zusätzlich
+zur** bisherigen festen Komfort-Tabelle (`bi_delta_<kuerzel>`) auch in
+eine eigene, voll dateinamen-benannte Tabelle
+(`bi_delta_<kuerzel>_<YYYYMM>_<timestamp>`) — nicht-brechend, Qwens
+bestehende Klasse-C-Modelle referenzieren weiterhin die feste Tabelle.
+Dbt-seitig: `dbt/macros/delta_multifile.sql` (`tools/render_scaffold.sh`)
+— `discover_delta_files(kuerzel)` findet zur Laufzeit (`run_query()`
+gegen `EXA_ALL_TABLES`) alle Datei-Tabellen eines Kürzels/Monats,
+`delta_union_dedup(kuerzel, key_column)` unioniert sie und dedupliziert
+per `ROW_NUMBER() PARTITION BY key_column ORDER BY <Dateireihenfolge>`
+(erste Datei gewinnt, wie im Original-Cursor). **Laufzeit-verifiziert**
+gegen den Ein-Datei-Testkorpus (202312, `bi_delta_fc`): `discover_delta_files`
+findet genau 1 Tabelle, `delta_union_dedup` liefert 500/500 Zeilen,
+alle Schlüssel eindeutig — exakt deckungsgleich mit der bisherigen
+festen Tabelle (Non-Regression bestätigt, `make gate`/`make compare`
+weiterhin G0 12/12, G1 12/12, G2+G3 exakt, G5 stabil).
+
+**[Annahme, NICHT gegen G3 verifizierbar]:** Cursor-Reihenfolge =
+alphabetische Sortierung der vollen Datei-Tabellennamen (der
+Bereitstellungs-Timestamp im Dateinamen ist sortierbar, `YYYYMMDDHHMMSS`,
+entspricht also zugleich der chronologischen Ankunftsreihenfolge). Unser
+Testkorpus hat nur je eine Datei pro Kürzel/Monat — die Tie-Break-Regel
+bei echten Duplikat-Schlüsseln über mehrere Dateien bleibt bis zu
+echten Mehrdatei-Testdaten unverifiziert.
+
+**Zwei laufzeit-verifizierte Exasol-Fallstricke** dabei gefunden (neu in
+`skills/transpile/exasol-dialect-gotchas.md`): (a) unquotierte Identifier
+dürfen in Exasol nicht mit `_` beginnen (`expecting IDENTIFIER_PART_`) —
+betrifft sowohl Hilfsspalten als auch Modell-/Tabellennamen; (b) per
+`exapump upload` geladene CSV-Spalten sind quotiert-kleingeschrieben,
+Fremdschlüssel-Vergleiche in generiertem SQL müssen entsprechend
+quotiert referenziert werden, sonst faltet Exasol auf Großschreibung und
+findet die Spalte nicht.
+
+**Offen für eine Qwen-Folgerunde:** `delta_union_dedup()` ist gebaute
+Infrastruktur (Klasse A, von mir), aber noch **nicht** in einem
+Klasse-C-Modell (Bestand) adoptiert — das darf ich nicht selbst tun
+(Kernregel `CLAUDE.md`). Nächster Schritt: Prompt für Qwen, das
+Bestand-Objekt auf den neuen Discovery-Pfad umzustellen, sobald
+Mehrdatei-Testdaten vorliegen oder als vorbereitende Migration.
 
 **2+3. Verarbeitungsmonat ≠ Berichtsmonat — mit echter Formel belegt.**
 Eine Lieferung (Verarbeitungsmonat) kann mehrere Berichtsmonate enthalten;

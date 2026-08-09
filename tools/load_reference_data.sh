@@ -60,19 +60,26 @@ load_delta() {
     local n=0
     for f in "$DELTA_DIR"/dbo__bi_delta_*_"${MONAT}"_*.csv; do
         [ -e "$f" ] || continue
-        local base tbl
+        local base tbl tbl_perfile
         base="$(basename "$f" .csv)"
-        tbl="${base#dbo__}"       # bi_delta_<kuerzel>_<YYYYMM>_<ts>
-        tbl="${tbl%_*}"           # Bereitstellungs-Timestamp entfernen
-        tbl="${tbl%_*}"           # Verarbeitungsmonat entfernen -> bi_delta_<kuerzel>
+        tbl_perfile="${base#dbo__}"  # bi_delta_<kuerzel>_<YYYYMM>_<ts> -- volle,
+                                       # eindeutige Pro-Datei-Tabelle (Konvention wie
+                                       # PD Create Table.Template Tables.sql: Dateiname
+                                       # = Tabellenname, siehe docs/datenlage.md §4.1)
+        tbl="${tbl_perfile%_*}"      # Bereitstellungs-Timestamp entfernen
+        tbl="${tbl%_*}"              # Verarbeitungsmonat entfernen -> bi_delta_<kuerzel>
+                                       # (feste Komfort-Tabelle, bisherige Konvention --
+                                       # bleibt bestehen, damit nichts Vorhandenes bricht)
         exapump sql -p "$PROFILE" "DROP TABLE IF EXISTS ${schema}.${tbl}" >/dev/null
         exapump upload "$f" --table "${schema}.${tbl}" -p "$PROFILE" < /dev/null >/dev/null
+        exapump sql -p "$PROFILE" "DROP TABLE IF EXISTS ${schema}.${tbl_perfile}" >/dev/null
+        exapump upload "$f" --table "${schema}.${tbl_perfile}" -p "$PROFILE" < /dev/null >/dev/null
         n=$((n + 1))
     done
     if [ "$n" -eq 0 ]; then
         echo "    WARNUNG: kein Delta-Import fuer $MONAT gefunden (siehe docs/datenlage.md, Luecke 202403)." >&2
     else
-        echo "    $n Delta-Tabellen geladen."
+        echo "    $n Delta-Dateien geladen (je 2 Tabellen: feste Komfort-Tabelle + Pro-Datei-Tabelle)."
     fi
 }
 
