@@ -60,13 +60,67 @@ aber still falsche Daten produziert, ist schlechter als eines, das sich
 als `blocked` meldet. Qwen hat es nicht als `blocked` markiert, sondern
 als erledigt committet.
 
-**Nicht selbst behoben** — das wäre Handmigration an einem Klasse-C-
-Objekt, dieselbe Grenze wie immer. Offen für nächste Entscheidung:
-Qwen mit genau diesem Befund erneut ansetzen (Folge-Iteration auf
-demselben Branch/Objekt), oder als bekannte Grenze so stehen lassen und
-später mit G3 verifizieren.
+## Follow-up-Runde (nach Nutzer-Hinweis: Vormonat-Logik gilt nur DWH-Layer)
+
+Nutzerkorrektur: laut `systemkontext.md` akkumuliert **nur** die DWH-Schicht
+(DATA+Vormonat); CALC/FACT/KNZ lesen danach nur noch aus DWH, ohne selbst
+zu akkumulieren. Dabei aufgefallen: **Qwen hat `docs/systemkontext.md` im
+ersten Lauf nie gelesen** — kein Pointer dorthin in `AGENTS.md`. Behoben
+(`48aa7fb`) — echte Lücke im Harness, nicht nur im Objekt.
+
+Zweiter Qwen-Lauf (27 Schritte, $0,14, `4fdb333`), Ergebnis **unabhängig
+verifiziert**:
+- **Schema-Rolle korrigiert**: `USE con_pd_dwh` im Quellskript → alle 6
+  Modelle von `calc/` nach `dwh/` verschoben, `schema_for('dwh')`.
+- **Akkumulationslücke ehrlich präzisiert, nicht implementiert**: Regel
+  jetzt klar „Modelle liefern nur das Delta, nicht den Gesamtbestand" statt
+  der vorherigen Untertreibung. Bewusst nicht nachgebaut — 202312 ist
+  unser Genesis-Monat im Testkorpus (keine echten Vormonatsdaten zum
+  Testen vorhanden), ein UNION mit einer nicht-existenten Tabelle wäre
+  nicht verifizierbar gewesen. `prev_month_schema()`-Makro steht für
+  später bereit, referenziert in der Regel.
+
+## Dritter, eigener Fund beim Nachprüfen: Case-Folding-Inkonsistenz
+
+Nach der Schema-Korrektur lief `make gate` erneut — neuer Fehler:
+`F.PD_DNST_NR not found`. Ursache: meine eigene `render_dbt_models.py`
+(Klasse A) erzeugt **unquotierte** Bezeichner (Exasol faltet sie auf
+Großschreibung), Qwens Klasse-C-Modelle **quoted-lowercase** (aus T-SQLs
+`[bracket]`-Bezeichnern 1:1 übernommen). An der Klasse-A/C-Grenze
+(mein `tt_deltant_pd_fc_org` referenziert Qwens `tf_deltant_pd_fc_k`)
+brach das. **Selbst behoben** (`bc60291`, `identify=True` in sqlglots
+Serialisierung) — das ist Bauherr-Tooling, nicht Qwens Aufgabe.
+
+Nach dem Fix: Fehler ist jetzt `dst.ba_schl not found` — das ist die in
+`systemkontext.md` B.6 von Anfang an dokumentierte Lücke
+(`con_pd_knz.vd_pd_dienststelle` liegt nicht in verwertbarem Format vor,
+POC-Ersatz `vd_as_pd_dienststelle.csv` noch nicht geladen). **Keine
+weitere Code-Ursache mehr** — echte, erwartete Datenlücke, kein Bug.
+
+## Endstand
+
+```
+G0: 11/11 Modelle syntaktisch OK
+G1: 6/11 erfolgreich (alle 6 Klasse-C-Bestand-Modelle grün), 2 Fehler
+    (beide: fehlende con_pd_knz-Dimensionsdaten, dokumentierte POC-Lücke),
+    3 uebersprungen
+```
+
+Chronologie der Fehlerkette über beide Sessions: fehlende Tabelle (Klasse
+C nicht migriert) → fehlender Alias (mein Bug) → fehlende Schema-Rolle
+(Qwens Bug, korrigiert) → Case-Folding (mein Bug) → echte Datenlücke
+(dokumentiert, kein Bug). Jede Schicht musste erst behoben werden, um die
+nächste sichtbar zu machen.
 
 ## Branch-Status
 
-`qwen/bestand-fc-fa-azt`, 1 Commit, **noch nicht nach `main` gemerged** —
-bewusst offen gelassen bis zur Entscheidung über die Akkumulations-Lücke.
+`qwen/bestand-fc-fa-azt`, 5 Commits (2× Qwen, 3× Bauherr-Fixes), nach
+`main` gemerged.
+
+## Nächster Schritt
+
+`vd_as_pd_dienststelle.csv` laden (POC-Ersatz laut systemkontext.md B.6)
+und die `con_pd_knz.vd_pd_dienststelle`-View bauen — Dateningestion, kein
+Klasse-C-Objekt. Danach sollte die Fehlerkette an der nächsten
+Dimensionslücke (`td_ueb_kalender_Tag`, `vd_as_bps_Region`) weitergehen,
+bis nur noch echte Datenlücken übrig sind.
