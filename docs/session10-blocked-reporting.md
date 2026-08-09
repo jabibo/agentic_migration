@@ -56,6 +56,31 @@ nie erkennen können.
 Nächster Schritt: (2) empirisch testen (s. u.), da es beide Fragen auf
 einmal beantwortet.
 
+## Nachtrag: Fix (1) getestet — kein Erfolg, aber ein saubereres Bild
+
+Auf Nutzeranfrage Fix (1) direkt getestet: frische Runde (Runde 12, kein
+`-c`) mit explizit genannter Versuchsnummer und wörtlichem Verweis auf
+`AGENTS.md`s Abbruchkriterium samt fertigem `ledger.jsonl`-Zeilenformat
+im Prompt. Ergebnis: **kein Fortschritt, kein `ledger.jsonl`-Eintrag**
+— aber aufschlussreicher als ein bloßes „hat nicht funktioniert": Qwen
+prüfte von sich aus `ledger.jsonl` auf vorhandene `knz_709`-Einträge
+(zeigt, dass die Information angekommen ist und als relevant erkannt
+wurde), kam aber nie bis zu einer Entscheidung — die Session endete an
+einem abgelehnten `git log`-Aufruf (nicht in der Allowlist), bevor
+überhaupt eine Schlussfolgerung (Fix oder `blocked`-Meldung) möglich
+war.
+
+**Revidierte Einschätzung:** das „Session stirbt nach der ersten
+Ablehnung"-Muster (durchgängig seit Session 9 beobachtet) ist der
+tiefer liegende Blocker — tiefer als die fehlende Versuchsnummer. Selbst
+wenn Qwen die Information hat, um `blocked` zu melden, kommt es oft gar
+nicht bis zu dem Punkt in der Session, an dem es diese Entscheidung
+träfe, weil eine unrelated Ablehnung die Session vorher beendet. Fix
+(1) allein reicht also nicht — er müsste mit einer Lösung für das
+Abbruch-nach-Ablehnung-Muster kombiniert werden (z. B. `--auto`, aber
+das wurde in Session 9 aus guten Gründen verworfen; oder ein noch
+großzügigerer, aber weiterhin schreibgeschützter Lese-Befehl-Katalog).
+
 ## Related
 `docs/ablation-metrics.md` · `docs/session10-batch-run.md` · `AGENTS.md`
 „Abbruchkriterium"
