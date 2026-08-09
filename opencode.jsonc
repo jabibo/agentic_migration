@@ -65,7 +65,9 @@
           "head *": "allow",
           "cat *": "allow",
           "grep *": "allow",
-          "wc *": "allow"
+          "wc *": "allow",
+          "ls *": "allow",
+          "find *": "allow"
         }
       }
     }
