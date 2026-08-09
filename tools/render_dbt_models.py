@@ -119,7 +119,14 @@ def render_select_body(
                 )
             external_sources.add((short_db, tbl))
             jinja = "{{ source('%s', '%s') }}" % (short_db, tbl)
-        t.replace(exp.to_table(new_ph(jinja)))
+        # Alias mitnehmen (f, dst, reg, ...) -- sonst bleiben SELECT-/ON-
+        # Referenzen wie "f.pd_dnst_nr" nach dem Ersetzen unaufloesbar
+        # [laufzeit-verifiziert: von Qwen in Session 5 gefunden, ledger.jsonl
+        # PD-KNZ-705-Eintrag -- kein Klasse-A/B-Grenzfall, reiner Tooling-Bug].
+        new_table = exp.to_table(new_ph(jinja))
+        if t.args.get("alias"):
+            new_table.set("alias", t.args["alias"].copy())
+        t.replace(new_table)
 
     # T-SQL-UDF-Aufrufe (dbo.uf_ueb_kalender_MonatAdd(...) o.ae.) -> dbt-Makro.
     # Argumente sind rohes SQL (CAST/TRY_CAST/...), das Jinja NICHT als
