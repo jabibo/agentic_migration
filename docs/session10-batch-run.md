@@ -62,6 +62,23 @@ solchen Fall enthält. `tf_pd_knz_709.sql` selbst bleibt bei ihrem
 bereits bekannten `&`-Bitwise-Operator-Fehler stehen (2 Runden ohne
 Fortschritt) — Exasol kennt nur `BIT_AND()`, kein `&`-Infix.
 
+**Nachtrag, auf Nutzerfrage empirisch geprüft** (nicht nur theoretisch
+vermutet): direkte SQL-Probe über `tools/exapump_select.sh` gegen
+`tf_pd_fc` (202312, 451 Zeilen) — Summe vs. verschachteltes `BIT_OR()`
+für alle 4 Felder verglichen. **48 von 451 Zeilen (≈10,6 %) weichen ab**
+— kein Rand-, sondern ein systematischer Fall: Code `11040` ("keine
+Behinderung") ist offensichtlich der Default-Füllwert für ungenutzte
+`pd_beh_2`/`_3`/`_4`-Slots, mappt auf Bit `1` — jede Zeile mit weniger
+als 4 tatsächlich erfassten Behinderungen hat also mehrfach dasselbe
+Bit, das die Addition doppelt zählt. Ein beobachteter Fall ist sogar
+schlimmer als reine Doppelzählung: `2048 + 2048 = 4096` kollidiert mit
+dem eigens reservierten Sentinel-Wert für „unbekannter Code" — das Flag
+wird für diese Zeile inhaltlich falsch, nicht nur zahlenmäßig verschoben.
+Bestätigt damit: kein theoretisches Risiko, sondern ein Fehler, der G3
+zuverlässig auffallen würde, sobald `tf_pd_knz_709.sql` den `&`-Fehler
+hinter sich hat. Bewusst nicht selbst behoben — Befund für Qwens
+nächste Runde, nicht für mich.
+
 ## Batch-Ergebnisse (701, 702, 708, 709)
 
 Details je Objekt in den jeweiligen Commit-Botschaften auf
