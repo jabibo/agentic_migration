@@ -32,6 +32,15 @@ ist bereits deterministisch erledigt — fass sie nicht an.**
 - Verbotene Konstrukte im generierten dbt-SQL: `#temp`-Tabellen, T-SQL-
   Prozeduren, unquotierte gemischte Groß-/Kleinschreibung bei Schlüsseln
   ohne Case-Prüfung.
+- **Schreibzugriff auf Exasol ausschließlich über `dbt run`/`make gate`,
+  nie per `exapump sql` mit `CREATE`/`INSERT`/`DROP`.** Fehlt eine
+  Upstream-Tabelle/-Quelle für einen isolierten Test: das ist ein
+  Blocker (Ledger, s.o.), keine Aufforderung, sie selbst zu bauen — auch
+  nicht testweise. Verstoß in Session 5 [laufzeit-verifiziert]: ein
+  Objekt wurde als „isoliert erfolgreich" gemeldet, obwohl die komplette
+  Upstream-Kette per Hand fabriziert war, nicht von `render_dbt_models.py`
+  erzeugt — das Ergebnis war wertlos. `exapump sql SELECT` (lesend) ist
+  zur Fehlersuche in Ordnung.
 
 ## Dein einziges Kommando
 

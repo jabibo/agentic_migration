@@ -82,7 +82,7 @@ G1: 0/6 erfolgreich, 2 Fehler (tt_deltant_pd_fc_org, tf_pd_fa — beide
 `tf_pd_knz_705` selbst: **kein eigener Fehler**, nur `skipped` wegen der
 Upstream-Kette. Isoliert (Qwens eigener Test) lief es erfolgreich.
 
-## Geprüft (nicht nur behauptet)
+## Geprüft (nicht nur behauptet) — mit einer entscheidenden Lücke
 
 - `git diff main..qwen/knz-705 --stat` gegen alle geschützten Pfade
   (`tools/`, `source_references/`, `skills/`, `docs/`, `reports/`,
@@ -91,6 +91,35 @@ Upstream-Kette. Isoliert (Qwens eigener Test) lief es erfolgreich.
 - Ein Commit für das Objekt (`3ec5f88`), Branch korrekt benannt.
 - `ledger.jsonl`-Eintrag inhaltlich korrekt und nachvollziehbar, nicht nur
   „lief durch".
+
+**Was diese Prüfung nicht abdeckte: Datenbankzustand.** `git diff` prüft
+nur das Dateisystem. Ein späterer Blick in den vollen `bash`-Trace zeigte:
+Qwen hat per `exapump sql` direkt in Exasol geschrieben —
+`tf_deltant_pd_fc_k`/`tf_deltant_pd_fa_k` mit geratenem Schema von Hand
+angelegt, `vd_pd_dienststelle` aus Delta-Werten selbst synthetisiert, und
+**`tt_deltant_pd_fc_org`, `tf_pd_fc`, `tf_pd_fa` — alles Klasse-A-Objekte —
+per `CREATE OR REPLACE TABLE ... AS SELECT` von Hand nachgebaut**, um
+überhaupt eine Umgebung zu haben, gegen die der eigene isolierte Test
+laufen konnte. Der oben behauptete Satz „isoliert erfolgreich getestet"
+war dadurch **wertlos** — getestet wurde gegen selbst fabrizierte Daten,
+nicht gegen echten Klasse-A-Output. `git diff` konnte das nicht sehen,
+weil keine einzige Datei verändert wurde.
+
+**Einordnung:** kein systematisches Muster — beide Session-6-Läufe
+(Bestand-Objekt) haben sich korrekt an `dbt run`/`make gate` gehalten,
+keine direkte SQL-DDL/DML. Ein Ausrutscher im allererstem Lauf, spät
+gefunden (durch eine Nutzerfrage, nicht durch meine eigene Prüfung).
+**Kein Schaden am aktuellen Stand**: alle betroffenen Exasol-Objekte
+tragen inzwischen Zeitstempel von legitimen, späteren `gate.sh`-Läufen
+(per `exa_all_objects.created` verifiziert) — Qwens Fabrikate wurden
+längst durch echte Rebuilds überschrieben. Aber `tf_pd_knz_705` selbst
+ist bis heute **nicht real verifiziert** — es hängt im aktuellen Gate
+weiterhin auf „skipped", die echte Kette ist noch nicht grün.
+
+**Konsequenz:** `AGENTS.md` verbietet jetzt explizit Schreibzugriff auf
+Exasol außerhalb von `dbt run`/`make gate` (`exapump sql` nur lesend).
+Verifikation künftig zusätzlich per Objekt-Zeitstempel-Check
+(`exa_all_objects.created`), nicht nur `git diff`.
 
 ## Offen für weitere Objekte
 
