@@ -67,7 +67,8 @@
           "grep *": "allow",
           "wc *": "allow",
           "ls *": "allow",
-          "find *": "allow"
+          "find *": "allow",
+          "echo *": "allow"
         }
       }
     }
