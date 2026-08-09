@@ -200,7 +200,15 @@ cat > dbt/macros/delta_multifile.sql <<'EOF'
       '"pd_auftr_id"' -- die per exapump/CSV geladenen Delta-Tabellen
       haben quotiert-kleingeschriebene Spalten (laufzeit-verifiziert:
       unquotiertes d.pd_auftr_id faltet zu D.PD_AUFTR_ID -> "object
-      not found", da real "pd_auftr_id" quotiert existiert). -#}
+      not found", da real "pd_auftr_id" quotiert existiert).
+
+      mfd_quelldatei: volle Quell-Tabelle (== Dateiname ohne .csv, s.
+      tools/load_reference_data.sh) je Zeile -- noetig, weil einzelne
+      Objekte (z.B. tf_deltant_pd_fa/azt, s. docs/session9-multifile-
+      loading.md, Runde 3) im Original-T-SQL bi_timestamp/bi_load_date
+      NICHT aus einer Datenspalte, sondern aus dem Tabellen-/Dateinamen
+      ableiten (REPLACE([tabelle], 'BI_DELTA_FA', '') o.ae.) -- ohne
+      diese Spalte war die Ableitung dbt-seitig gar nicht abbildbar. -#}
   {%- set schema = schema_for('data') -%}
   {%- set tables = discover_delta_files(kuerzel) -%}
   {%- if execute and tables|length == 0 -%}
@@ -218,7 +226,7 @@ cat > dbt/macros/delta_multifile.sql <<'EOF'
              ) AS mfd_rn
       FROM (
         {% for t in tables %}
-        SELECT *, {{ loop.index }} AS mfd_quellreihenfolge
+        SELECT *, {{ loop.index }} AS mfd_quellreihenfolge, '{{ t }}' AS mfd_quelldatei
         FROM {{ schema }}.{{ t }}
         {% if not loop.last %}UNION ALL{% endif %}
         {% endfor %}
