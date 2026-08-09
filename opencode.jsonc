@@ -41,7 +41,32 @@
           "dbt/**": "allow",
           "memory/rules/**": "allow"
         },
-        "bash": "ask"
+        // Session 9 (docs/session9-multifile-loading.md): "ask" allein
+        // blockierte Qwens eigenen Feedback-Loop vollstaendig im
+        // nicht-interaktiven `opencode run` -- "ask" kann dort nie
+        // beantwortet werden, jeder bash-Aufruf (auch die laut AGENTS.md
+        // ausdruecklich erlaubten make gate/make compare) wurde automatisch
+        // abgelehnt. Deshalb genau diese zwei lesenden Kommandos freigegeben,
+        // alles andere bleibt "ask" (in headless-Laeufen effektiv "deny") --
+        // insbesondere der bekannte Bypass-Weg (z.B. "echo x > tools/y",
+        // s. "Weiterhin offen" in CLAUDE.md) bleibt gesperrt.
+        // Laufzeit-verifiziert (docs/session9-multifile-loading.md): bei
+        // Pipes (z.B. "make gate MONAT=... | tail -10") prueft opencode
+        // offenbar jeden Teilbefehl einzeln -- "make gate MONAT=*" allein
+        // liess den Aufruf trotzdem an "*": "ask" scheitern, weil "tail -10"
+        // nicht erlaubt war. Deshalb zusaetzlich die ueblichen lesenden
+        // Anzeige-Befehle freigegeben (kein neues Risiko: Lesezugriff ist
+        // fuer Qwen ueber das read-Tool ohnehin schon uneingeschraenkt).
+        "bash": {
+          "*": "ask",
+          "make gate MONAT=*": "allow",
+          "make compare MONAT=*": "allow",
+          "tail *": "allow",
+          "head *": "allow",
+          "cat *": "allow",
+          "grep *": "allow",
+          "wc *": "allow"
+        }
       }
     }
   }
