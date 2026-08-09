@@ -117,10 +117,25 @@ nächste sichtbar zu machen.
 `qwen/bestand-fc-fa-azt`, 5 Commits (2× Qwen, 3× Bauherr-Fixes), nach
 `main` gemerged.
 
-## Nächster Schritt
+## Nachtrag: `vd_pd_dienststelle` geladen — nächste Fehlerschicht sichtbar
 
-`vd_as_pd_dienststelle.csv` laden (POC-Ersatz laut systemkontext.md B.6)
-und die `con_pd_knz.vd_pd_dienststelle`-View bauen — Dateningestion, kein
-Klasse-C-Objekt. Danach sollte die Fehlerkette an der nächsten
-Dimensionslücke (`td_ueb_kalender_Tag`, `vd_as_bps_Region`) weitergehen,
-bis nur noch echte Datenlücken übrig sind.
+`vd_as_pd_dienststelle.csv` (aus `without_macros/agentic`) als Parquet
+konvertiert, `con_pd_knz.vd_pd_dienststelle` als Pass-Through-View gebaut
+(`tools/load_reference_data.sh` → `load_knz_views()`). G1: 6/12 → **7/12**
+(`tt_deltant_pd_fc_org` läuft jetzt durch).
+
+**Neuer, echter Datenfehler dahinter**, kein Lade-/Infrastrukturproblem
+mehr: `tf_pd_fa`/`tf_pd_fc` scheitern an
+`data exception - Invalid numeric format; Format String: 'YYYYMMDD'`.
+Wahrscheinliche Ursache: Qwens Bestand-Modelle mappen
+`"mon_id" AS "bi_load_date"` — `mon_id` ist ein INTEGER (z. B. `202312`),
+kein Datum. Klasse-A-Code (`TO_CHAR(bi_load_date, 'YYYYMMDD')`) erwartet
+aber ein echtes Datum/Timestamp. Genau die Vereinfachung, die schon beim
+ersten Bestand-Lauf als Verdacht notiert wurde (oben, „`mon_id`/
+`bi_timestamp` statt echter Datei-Metadaten") — jetzt mit konkretem
+Fehlerbeleg. **Nicht selbst gefixt** — Qwens Klasse-C-Inhalt.
+
+Nächster Schritt: entweder Qwen erneut mit diesem Befund ansetzen
+(`bi_load_date` korrekt typisieren), oder die übrigen Dimensionslücken
+(`vd_as_bps_Region`, `td_ueb_kalender_Tag`) zuerst schließen, um das volle
+Fehlerbild zu sehen, bevor iteriert wird.
