@@ -42,16 +42,20 @@ agentic_migration/
 ├─ learning/pd/                # Dimensionen, Referenzwerte (G3), Star-Schema — s. docs/datenlage.md
 ├─ tools/
 │  ├─ extract.py             # P0–P4: Platzhalter, GO-Split, Parse, Lineage, Transpile-Vorschlag
-│  ├─ gate.sh                 # TODO Session 3: G0/G1, normalisierter Fehlerkanal
-│  └─ compare.sh              # TODO Session 3: G2–G5, read-only für den Agenten
+│  ├─ render_dbt_models.py    # Klasse A -> dbt/models/ (generisch, kein Objektname im Code)
+│  ├─ render_scaffold.sh      # dbt/dbt_project.yml, profiles.yml, macros/ reproduzierbar
+│  ├─ load_reference_data.sh  # Test-/Referenzdaten -> Exasol (exapump)
+│  ├─ gate.sh                 # G0 (sqlfluff)/G1 (dbt run), normalisierter Fehlerkanal ✅
+│  └─ compare.sh              # TODO Session 5+: G2–G5, read-only für den Agenten
 ├─ memory/rules/              # Regelgedächtnis, schrumpft durch Promotion in Code
 ├─ skills/                    # je Datei ein Thema, ≤ 40 Zeilen, Retrieval per rg
+│  └─ transpile/exasol-dialect-gotchas.md  # 3 laufzeit-verifizierte Faelle, s. docs/session3-gates.md
 ├─ source_references/pd/      # reale T-SQL-Quellobjekte (Referenzverfahren BPS/PD)
 │  ├─ pd_skripte/              # Migrationsziele (14 Kennzahl-/Load-Skripte)
 │  └─ ddl/                     # autoritatives Original-Schema (Bestand-Layer)
 ├─ reports/                   # generiert: lineage.jsonl, triage.md — nicht committen als Wahrheit, nur als Zwischenstand
-├─ dbt/                       # Build-Ergebnis, entsteht erst ab Session 3 (Scaffold)
-├─ ledger.jsonl               # append-only, 1 Zeile/Versuch
+├─ dbt/                       # Build-Ergebnis (tools/render_scaffold.sh + render_dbt_models.py), .gitignore'd
+├─ ledger.jsonl               # append-only, 1 Zeile/Versuch — entsteht erst mit Qwens erstem Lauf (Session 5)
 └─ Makefile
 ```
 
@@ -74,11 +78,14 @@ Ansatz nicht.
    Details/echte Laufergebnisse: `docs/session3-gates.md`). `compare.sh`
    (G2–G5) noch offen — braucht eine vollständige DAG (Klasse B/C
    migriert), nicht sinnvoll vor Session 4/5.
-4. `AGENTS.md` + `skills/` aus den echten Gate-Ausgaben ableiten (jetzt
-   möglich — drei reale Fehlerklassen liegen vor, `docs/session3-gates.md`),
-   nicht aus Vermutung. ← nächste Session.
+4. **`AGENTS.md` + `skills/`** ✅. Ledger-Schema in `AGENTS.md` definiert
+   (existierte vorher nur als Wort, kein Format); dabei einen echten
+   Widerspruch gefunden und behoben — `AGENTS.md` verlangte Ledger-
+   Einträge bei Blockade, `opencode.jsonc` verweigerte aber Schreibzugriff
+   auf `ledger.jsonl`. `skills/transpile/exasol-dialect-gotchas.md` aus
+   den drei Session-3-Funden (nicht aus Vermutung).
 5. Übergabe an Qwen: OpenCode gegen das Repo als Working Directory, ein
-   Objekt = ein Branch = ein Commit.
+   Objekt = ein Branch = ein Commit. ← nächste Session, offene Punkte s.u.
 
 **Runner-Entscheidung (statt `cline`):** [opencode.jsonc](opencode.jsonc)
 definiert den Agenten `migrator`. Grund für den Wechsel: OpenCodes
@@ -86,23 +93,29 @@ Permission-System (`agent.migrator.permission.edit`) erzwingt den
 Read-only-Schutz technisch (Glob-Pattern, „letzte passende Regel
 gewinnt") statt ihn nur als Konvention zu dokumentieren und per
 `git diff` nachträglich zu prüfen — im alten `without_macros/agentic`-
-Repo (cline) war das nur eine `AGENTS.md`-Regel. Offen, bevor Session 5
-laufen kann:
-- `opencode providers login -p openrouter` (interaktiv, macht der Mensch —
-  API-Key-Eingabe ist kein Agent-Schritt).
-- Danach `opencode models openrouter | grep -i qwen` und die echte
-  Modell-ID in `opencode.jsonc` → `model` eintragen (Platzhalter
-  `qwen3.6-TODO` ist absichtlich ungültig, damit ein vergessener Eintrag
-  hart auffällt statt still falsch zu laufen).
+Repo (cline) war das nur eine `AGENTS.md`-Regel.
+
+Provider/Modell-ID sind gesetzt (`opencode.jsonc` → `model`). Offen vor
+Session 5:
 - Verifizieren, dass der Lauf tatsächlich Qwen trifft (nicht einen
   Default) — `opencode debug agent migrator` zeigt die aufgelöste Config;
-  Session-Log/Export (`opencode export`) sollte das Modell nennen.
+  Session-Log/Export (`opencode export`) sollte das Modell nennen. Der
+  alte cline-Lauf in `without_macros/agentic` hatte genau diesen Fehler
+  (`<cline-default>` statt explizitem Modell) — nicht wiederholen.
+- `permission.bash` steht auf `"ask"`, ist aber pfadunspezifisch — ein
+  Bash-Aufruf könnte die `edit`-Sperre umgehen (z.B. `echo x > tools/y`).
+  Mitigiert nur durch den `git diff`-Check nach jedem Lauf, nicht durch
+  das Tool selbst. Vor Session 5 entscheiden, ob das reicht.
 
 ## Betriebsregeln
 
-- Der Harness gehört nicht dem Agenten: `tools/compare.sh`,
-  `source_references/`, `ledger.jsonl` sind für Qwen laut `AGENTS.md`
-  tabu — nach jedem Qwen-Lauf `git diff` auf genau diese Pfade prüfen.
+- Der Harness gehört nicht dem Agenten: `tools/`, `source_references/`,
+  `skills/`, `docs/`, `reports/` sind für Qwen technisch schreibgeschützt
+  (`opencode.jsonc`), nicht nur Konvention. `ledger.jsonl` und
+  `memory/rules/` sind bewusst die Ausnahme — Qwens eigenes Protokoll/
+  Regelgedächtnis, kein Prüf-Orakel. Trotzdem nach jedem Qwen-Lauf
+  `git diff` gegen die geschützten Pfade prüfen (Permission-Umgehung via
+  Bash ist technisch nicht ausgeschlossen, nur erschwert).
 - Ein Objekt = ein Commit. `git log` ist das Rohprotokoll, `ledger.jsonl`
   nur die Auswertungsschicht darüber.
 - Python bleibt schmal (~200 Zeilen Zielgröße für `extract.py`); Ledger-

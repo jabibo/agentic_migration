@@ -34,7 +34,7 @@
           "skills/**": "deny",
           "docs/**": "deny",
           "reports/**": "deny",
-          "ledger.jsonl": "deny",
+          "ledger.jsonl": "allow",
           "AGENTS.md": "deny",
           "CLAUDE.md": "deny",
           "opencode.jsonc": "deny",

@@ -1,10 +1,10 @@
 # Skills
 
-Leer bis Session 4 (siehe [../CLAUDE.md](../CLAUDE.md) Sessionfolge:
-„`AGENTS.md` + Skills aus den echten Gate-Ausgaben ableiten, nicht aus
-Vermutung").
+Befüllt seit Session 4, aus echten Gate-Ausgaben (nicht Vermutung) —
+siehe [transpile/exasol-dialect-gotchas.md](transpile/exasol-dialect-gotchas.md)
+und [pipeline/vormonat-incremental.md](pipeline/vormonat-incremental.md).
 
-Konvention, sobald befüllt:
+Konvention:
 
 - Eine Datei je Thema (z.B. `calc-mehrfachschreiber.md`,
   `knz-views.md`, `typ-mapping.md`), **max. 40 Zeilen**.
