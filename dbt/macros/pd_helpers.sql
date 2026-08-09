@@ -1,8 +1,14 @@
 {% macro behinderung_bit(beh1, beh2, beh3, beh4) %}
-  COALESCE({{ _behinderung_map(beh1) }}, 0)
-    + COALESCE({{ _behinderung_map(beh2) }}, 0)
-    + COALESCE({{ _behinderung_map(beh3) }}, 0)
-    + COALESCE({{ _behinderung_map(beh4) }}, 0)
+  BIT_OR(
+    BIT_OR(
+      COALESCE({{ _behinderung_map(beh1) }}, 0),
+      COALESCE({{ _behinderung_map(beh2) }}, 0)
+    ),
+    BIT_OR(
+      COALESCE({{ _behinderung_map(beh3) }}, 0),
+      COALESCE({{ _behinderung_map(beh4) }}, 0)
+    )
+  )
 {% endmacro %}
 
 {% macro _behinderung_map(beh_col) %}

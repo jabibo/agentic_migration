@@ -5,7 +5,7 @@
 SELECT
   "tt"."pd_auftr_id",
   "tt"."org_id",
-  "tt"."pd_schul_abschl",
+  COALESCE("tt"."pd_schul_abschl", 99999) AS "pd_schul_abschl",
   "tt"."pd_geschlecht",
   "tt"."mon_id",
   "tt"."pd_abschl_art",
