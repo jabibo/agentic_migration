@@ -8,7 +8,7 @@ SELECT
   fc."pd_schul_abschl",
   COALESCE(fc."pd_geschlecht", 29004) AS "pd_geschlecht",
   {{ behinderung_bit("fc.\"pd_beh_1\"", "fc.\"pd_beh_2\"", "fc.\"pd_beh_3\"", "fc.\"pd_beh_4\"") }} AS "pd_beh_key",
-  CAST(LEFT(TO_CHAR("pd_abschl_dat", 'YYYYMMDD'), 6) AS INT) AS "mon_id",
+  {{ var('verarbeitungsmonat') }} AS "mon_id",
   fc."pd_abschl_art",
   fc."bps_bild_abs",
   fc."pd_rks_id",
