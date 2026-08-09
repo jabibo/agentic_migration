@@ -120,7 +120,17 @@
           "*>*AGENTS.md*": "deny",
           "*>*CLAUDE.md*": "deny",
           "*>*opencode.jsonc*": "deny"
-        }
+        },
+        // Laufzeit-verifiziert (docs/session10-rejection-mechanism.md,
+        // KNZ-709-Runde 14): Zugriffe ausserhalb des Projektverzeichnisses
+        // (z.B. /tmp/gate_*.log) laufen ueber eine EIGENE Permission-
+        // Kategorie, nicht ueber "bash" -- der ask->deny-Fix dort deckt
+        // das nicht ab, default bleibt "ask" (dieselbe fatale Wirkung im
+        // Headless-Betrieb). Passt zu tools/gate.sh's eigener Absicht
+        // ("Rohlogs nicht in Agenten-Kontext geben") -- explizit auf
+        // deny gesetzt statt implizit ueber den unbeantwortbaren
+        // ask-Default zu scheitern.
+        "external_directory": "deny"
       }
     }
   }
