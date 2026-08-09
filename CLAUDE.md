@@ -26,6 +26,8 @@ auf derselben Objektmenge:
 Kennzahlen: Autonomierate, First-Pass-Yield, Ø Iterationen/Objekt über
 Zeit, Datenäquivalenz-Quote, Token-Kosten/Objekt — plus der Triage-Anteil
 A/B/C selbst als eigene Kernaussage („x % ist beweisbar deterministisch").
+Erste Quantifizierung nach Session 10 (8 Objekte, Setup B):
+[docs/ablation-metrics.md](docs/ablation-metrics.md).
 
 ## Layout
 
