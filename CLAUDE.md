@@ -156,20 +156,31 @@ gewinnt") statt ihn nur als Konvention zu dokumentieren und per
 `git diff` nachträglich zu prüfen — im alten `without_macros/agentic`-
 Repo (cline) war das nur eine `AGENTS.md`-Regel.
 
-**Weiterhin offen** (blockierend für Setup B, s. Session 9):
-- `permission.bash` steht auf `"ask"`, ist aber pfadunspezifisch — ein
-  Bash-Aufruf könnte die `edit`-Sperre umgehen (z.B. `echo x > tools/y`).
-  Bisher nicht passiert (`git diff` in jedem Lauf leer), aber nicht durch
-  das Tool selbst ausgeschlossen, nur durch den Nachcheck.
-- **Dieselbe Einstellung blockiert zugleich Qwens eigenen Feedback-Loop**
-  (Session 9, `docs/session9-multifile-loading.md`): `"ask"` kann in
-  nicht-interaktivem `opencode run` nie beantwortet werden, jeder
-  `bash`-Aufruf wird automatisch abgelehnt — auch die laut `AGENTS.md`
-  ausdrücklich erlaubten `make gate`/`make compare`. Qwen konnte in
-  keinem bisherigen headless-Lauf sein eigenes Gate-Ergebnis sehen.
-  Fraglich, ob Setup B damit bisher übehaupt wie vorgesehen getestet
-  wurde. Braucht eine bewusste Harness-Entscheidung (nicht reaktiv
-  mitten in einem Lauf, s. Session-9-Nachtrag oben) — ungelöst.
+**Weiterhin offen**:
+- `permission.edit` deckt nicht jeden denkbaren Bash-Umgehungsweg technisch
+  ab (z.B. `echo x > tools/y`) — `permission.bash` lässt jetzt zwar gezielt
+  `make gate`/`make compare`/lesende Anzeige-Befehle zu (s.u.), alles
+  andere bleibt `"ask"`/faktisch gesperrt in headless-Läufen, aber das ist
+  weiterhin nur durch den Bash-Filter selbst erzwungen, nicht durch eine
+  zweite unabhängige Schranke. Bisher nicht ausgenutzt (`git diff` in
+  jedem Lauf leer), aber nicht grundsätzlich ausgeschlossen, nur durch den
+  Nachcheck.
+
+**Gelöst (Session 9):** `permission.bash: "ask"` blockierte Qwens eigenen
+Feedback-Loop vollständig im nicht-interaktiven `opencode run` — `"ask"`
+kann dort nie beantwortet werden, auch die laut `AGENTS.md` ausdrücklich
+erlaubten `make gate`/`make compare` wurden automatisch abgelehnt. Fraglich,
+ob Setup B damit in den Sessions 5/6/8 überhaupt wie vorgesehen getestet
+wurde — nicht rückwirkend geprüft. Fix (bewusste Harness-Entscheidung, auf
+Nutzeranfrage, nicht reaktiv mitten in einem Lauf): `opencode.jsonc`
+erlaubt jetzt `make gate MONAT=*`/`make compare MONAT=*` plus übliche
+lesende Anzeige-Befehle (`tail`/`head`/`cat`/`grep`/`wc`, nötig weil
+opencode bei Pipes jeden Teilbefehl einzeln prüft). Laufzeit-verifiziert:
+minimaler Testlauf ohne jede Permission-Anfrage durchgelaufen. Details:
+`docs/session9-multifile-loading.md`.
+- Kein Prompt-Caching im ersten Lauf (`docs/session5-qwen-run.md`) — bei
+  158 Schritten $1.70 für ein kleines Klasse-B-Objekt. Vor größeren
+  Objekten (KNZ 709, 17 Statements) im Auge behalten.
 - Kein Prompt-Caching im ersten Lauf (`docs/session5-qwen-run.md`) — bei
   158 Schritten $1.70 für ein kleines Klasse-B-Objekt. Vor größeren
   Objekten (KNZ 709, 17 Statements) im Auge behalten.
