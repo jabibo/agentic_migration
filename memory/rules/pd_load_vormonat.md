@@ -1,21 +1,17 @@
-# Regel: PD LOAD.Bestandsuebernahme — Vormonat-Schritt und Akkumulation
+# Regel: PD LOAD.Bestandsuebernahme — bi_load_date aus bi_timestamp ableiten
 
 ## Problem
-Das T-SQL Skript hat 2 Schritte: (1) Vormonats-DWH als Basis kopieren,
-(2) Delta aus DATA appenden. Die dbt-Models implementieren nur Schritt 2
-(Delta lesen). Schritt 1 (Vormonat-Basis) fehlt komplett.
-
-## Ursache
-Fuer Testlaufe mit nur einem Monat (202312) existiert kein Vormonat-DWH
-→ Schema fehlt → Lauf scheitert. Daher wurde Schritt 1 uebersprungen.
-
-## Loesung
-Schritt 1 (Vormonat-Akkumulation) ist fuer Testlaufe nicht nachbildbar, da
-kein Vormonats-DWH zur Verfuegung steht. Models liefern daher nur das
-Delta, nicht den Gesamtbestand. In Produktion muss con_pd_dwh_vm
-(Vormonats-Schema) vorab geladen werden; dann muessen die Models um eine
-UNION ALL mit prev_month_schema('dwh') erweitert werden.
+bi_load_date wurde von mon_id (YYYYMM-String wie '202312') befuellt.
+Downstream-Klasse-A-Code ruft TO_CHAR(bi_load_date, 'YYYYMMDD') auf, was
+ein DATE/TIMESTAMP erwartet — Exasol sqlcode=22123 'Invalid numeric format'.
 
 ## Korrektur
-Befindet sich in calc/ mit schema_for('calc') — falsch. Korrigiert nach
-dwh/ mit schema_for('dwh') gemaess USE con_pd_dwh im Quellskript.
+bi_load_date = CAST("bi_timestamp" AS DATE) in allen tf_deltant_pd_[fa|fc|azt].
+Klassifizierung als Datum, nicht als String._mon_id_ bleibt fuer fachliche
+Monatszuordnung weiter verfuegbar.
+
+## Nachschlageregeln
+- _k-Modelle: bi_load_date-Vergleich mit CAST(... AS DATE), nicht String-
+  comparison (T-SQL verwendet VARCHAR-Vergleich).
+- Klasse-A-TO_CHAR: bi_load_date muss vor Aufruf nach VARCHAR(8) gecastet
+  werden, da Exasol TO_CHAR ein STRING als erstes Argument erwartet.

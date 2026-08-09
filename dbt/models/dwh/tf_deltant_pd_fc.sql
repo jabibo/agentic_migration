@@ -41,7 +41,7 @@ SELECT
     "pd_dgk_id",
     "pd_spr_id",
     "pd_trg_schl",
-    "mon_id" AS "bi_load_date",
+    CAST("bi_timestamp" AS DATE) AS "bi_load_date",
     "bi_timestamp" AS "bi_load_filename"
 FROM {{ schema_for('data') }}.bi_delta_fc
 WHERE "pd_auftr_id" IS NOT NULL

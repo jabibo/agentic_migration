@@ -12,4 +12,4 @@ SELECT
     "bi_load_date",
     "bi_load_filename"
 FROM {{ ref('tf_deltant_pd_azt') }}
-WHERE "bi_load_date" >= '{{ (var("verarbeitungsmonat")[:4]|int - 4)|string }}0101'
+WHERE "bi_load_date" >= CAST('{{ (var("verarbeitungsmonat")[:4]|int - 4)|string }}-01-01' AS DATE)
