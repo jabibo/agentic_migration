@@ -6,6 +6,20 @@ Prozessfehler auf meiner (Bauherr-)Seite aufgedeckt hat — hier
 unbeschönigt dokumentiert, weil er die Aussagekraft dieses Objekts für
 die Ablationsstudie einschränkt.
 
+> **Verdikt `tf_deltant_pd_fa.sql`/`tf_deltant_pd_azt.sql` (Bauherr-
+> Einschätzung, kein Qwen-Selbstprotokoll):** **fehlgeschlagen**, 0/4
+> unaided Runden. Über `AGENTS.md`s eigener 3-Iterationen-Schwelle.
+> Kein Verständnisproblem — Runden 2–4 diagnostizieren den tatsächlichen
+> Bug jedes Mal korrekt und in eigenen Worten anhand echter Gate-
+> Ausgabe — sondern ein Konvergenzproblem: keine Runde bringt einen
+> `edit`, der zur eigenen Diagnose passt, bis zum Ende. Verstärkt durch
+> Tool-Calling-Instabilität, die seit Session 6 nachweislich vorbesteht.
+> Kein Ledger-Eintrag (s.u.): Qwen selbst hat in keiner Runde eine
+> eigene Schlussfolgerung gezogen, die das Selbstprotokoll festhalten
+> könnte. Stand: `qwen/bestand-multifile-adoption`, ungemerged, mit dem
+> bekannt fehlerhaften Runde-1-Ergebnis (Commit-Inhalt unverändert,
+> Hash ändert sich bei jedem Rebase auf `main` — zuletzt `e473dca`).
+
 ## Teil 1: Infrastruktur (Bauherr, Klasse A)
 
 `tools/load_reference_data.sh`/`dbt/macros/delta_multifile.sql` —
