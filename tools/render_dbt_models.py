@@ -145,10 +145,12 @@ def render_select_body(
         root = node.parent if isinstance(node.parent, exp.Dot) and node.parent.expression is node else node
         root.replace(exp.column(new_ph(jinja)))
 
-    # T-SQL-Lokalvariablen aus dem ErsterMonat/LetzterMonat-Boilerplate.
+    # T-SQL-Lokalvariablen aus dem ErsterMonat/LetzterMonat-Boilerplate --
+    # month_range_vars liefert bereits den vollstaendigen Makroaufruf
+    # (z.B. "knz_erster_monat(705)"), keine var()-Umhuellung mehr noetig.
     for node in list(select.find_all(exp.Parameter)):
         if node.name in month_range_vars:
-            jinja = "{{ var('%s') }}" % month_range_vars[node.name]
+            jinja = "{{ %s }}" % month_range_vars[node.name]
             node.replace(exp.column(new_ph(jinja)))
 
     # identify=True: alle Bezeichner quoted -- konsistent mit Qwens Klasse-C-

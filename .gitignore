@@ -234,3 +234,6 @@ learning/
 # auch tools/lib/ (unser Shell-Helper, kein Python-Package-Verzeichnis).
 !tools/lib/
 !tools/lib/**
+
+# macOS
+.DS_Store

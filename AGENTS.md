@@ -27,8 +27,8 @@ ist bereits deterministisch erledigt — fass sie nicht an.**
   "iteration": N}` — dann nicht weiterversuchen.
 - Neue Regel nach behobenem Fehler: `memory/rules/<code>.md`, ≤ 5 Zeilen,
   generalisiert (nicht objektspezifisch). Vor jedem eigenen Fix-Versuch:
-  `rg <fehlertext> skills/` — `skills/transpile/exasol-dialect-gotchas.md`
-  hat 3 laufzeit-verifizierte Fälle exakt nach Fehlertext durchsuchbar.
+  `rg <fehlertext oder EXEC-Aufruf> skills/` — u.a. Exasol-Fallstricke,
+  Berichtszeitraum-Formel, Boilerplate- vs. Framework-Prozeduren.
 - Verbotene Konstrukte im generierten dbt-SQL: `#temp`-Tabellen, T-SQL-
   Prozeduren, unquotierte gemischte Groß-/Kleinschreibung bei Schlüsseln
   ohne Case-Prüfung.

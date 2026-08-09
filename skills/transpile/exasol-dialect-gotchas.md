@@ -29,16 +29,7 @@ String-Literal uebergeben: `{{ month_add("CAST(...)", "-1") }}`.
 Andere UDFs (z.B. `uf_pd_Behinderung_Key`): kein bekanntes Makro — Objekt
 `blocked` markieren, nicht selbst erfinden.
 
-## `@von_mon_id`/`@bis_mon_id` (Berichtszeitraum-Boilerplate)
-Fehlertext (sqlfluff, G0): `unparsable` bei `@<name>`. Muster:
-`DECLARE @x INT, @y INT; SELECT @x = ErsterMonat, @y = LetzterMonat
-FROM dbo.uf_ueb_kalender_Kennzahl('<id>')` — Standard-Boilerplate in
-fast jedem Kennzahl-Skript. Beide Variablen durch
-`{{ var('verarbeitungsmonat') }}` ersetzen (Einzelmonats-Verarbeitung ist
-die Norm). **[Annahme, nicht aus `uf_ueb_kalender_Kennzahl()` selbst
-verifiziert]** — falls G3 (Datenäquivalenz, sobald verfügbar) hier
-abweicht, Objekt `blocked` markieren statt zu raten.
-
 ## Related
 `docs/session3-gates.md` (Herleitung, betroffene Objektzahl je Fallstrick) ·
-`skills/pipeline/vormonat-incremental.md`
+`skills/pipeline/vormonat-incremental.md` ·
+`skills/transpile/kennzahl-berichtszeitraum.md` (`@von_mon_id`/`@bis_mon_id`)

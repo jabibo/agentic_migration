@@ -70,25 +70,31 @@ def rewrite_placeholders(sql: str) -> tuple[str, list[str]]:
 
 
 # Boilerplate-Erkennung: @von = ErsterMonat, @bis = LetzterMonat FROM
-# dbo.uf_ueb_kalender_Kennzahl(...) -- identisch in 8/9 Kennzahl-Skripten
-# (grep-bestaetigt), Spaltennamen sind selbstbeschreibend (kein Fachwissen
-# von uns erfunden). [Annahme]: im Schema-je-Monat-Modell ist Erster==Letzter
-# ==Verarbeitungsmonat (Einzelmonats-Verarbeitung ist die Norm, siehe
-# docs/systemkontext.md) -- nicht aus dem Quellcode von uf_ueb_kalender_
-# Kennzahl() selbst verifiziert, den wir nicht besitzen.
+# dbo.uf_ueb_kalender_Kennzahl('<N>') -- identisch in 8/9 Kennzahl-Skripten
+# (grep-bestaetigt), Spaltennamen sind selbstbeschreibend. NICHT mehr
+# [Annahme]: ErsterMonat/LetzterMonat sind kein Einzelmonat, sondern ein
+# rollierendes Fenster -- Formel + Parameter je Kennzahl [Quelle:
+# learning/pd/pd_skripte_excluded/UEB Kalender Dimensionen.
+# td_ueb_kalender_KennzahlZeitraum.sql]. Die fruehere "Erster==Letzter==
+# Verarbeitungsmonat"-Annahme war falsch -- widerlegt durch G3
+# (docs/session7-compare.md). Berechnung: dbt/macros/kennzahl_zeitraum.sql
+# (tools/render_scaffold.sh), Aufloesung hier nur strukturell (welche
+# Variable -> welches Makro), keine erneute Fachentscheidung.
 MONTH_RANGE_RE = re.compile(
     r"@(\w+)\s*=\s*ErsterMonat.*?@(\w+)\s*=\s*LetzterMonat"
-    r".*?FROM\s+(?:dbo\.)?uf_ueb_kalender_Kennzahl",
+    r".*?FROM\s+(?:dbo\.)?uf_ueb_kalender_Kennzahl\(\s*'(\d+)'\s*\)",
     re.IGNORECASE | re.DOTALL,
 )
 
 
 def find_month_range_vars(rewritten_sql: str) -> dict[str, str]:
-    """@von_mon_id/@bis_mon_id (oder wie auch immer benannt) -> 'verarbeitungsmonat'."""
+    """@von_mon_id/@bis_mon_id (oder wie auch immer benannt) -> Jinja-Makroaufruf
+    (jeweils an die konkrete Kennzahl-Nummer gebunden, nicht generisch)."""
     m = MONTH_RANGE_RE.search(rewritten_sql)
     if not m:
         return {}
-    return {m.group(1): "verarbeitungsmonat", m.group(2): "verarbeitungsmonat"}
+    von, bis, knz = m.group(1), m.group(2), m.group(3)
+    return {von: f"knz_erster_monat({knz})", bis: f"knz_letzter_monat({knz})"}
 
 
 # --------------------------------------------------------------------------

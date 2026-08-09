@@ -16,7 +16,7 @@ Session 3 (Gates) folgt.
 | `learning/pd/dimensions/*.parquet` | ~29 Dimensions-Snapshots (`dbo__vd_as_*`, `dbo__td_ueb_kalender_tag`) | **DIM**-Schicht (`con_bio_dim`), „als gegeben angesehen" |
 | `learning/pd/referenz/<YYYYMM>/fct_pd_knz_*.parquet` | Erwartete Fakt-Ergebnisse je Kennzahl, 4 Monate (202312–202403) | **Ground Truth für G3** (Datenäquivalenz) |
 | `learning/pd/pd_skripte/`, `learning/pd/ddl/` | Duplikat von `source_references/pd/` | keine Handlung — bereits im Repo |
-| `learning/pd/pd_skripte_excluded/` | 2 Skripte, **nie** in `source_dir` | siehe 1.3 |
+| `learning/pd/pd_skripte_excluded/` | 6 Skripte, **nie** in `source_dir` | siehe 1.3; 4 davon (Kalenderfunktionen, OLAP-Views) sind Referenzquellen für Session 8, nicht Migrationsziele |
 | `learning/pd/pd_star_schema.mmd` | Ziel-Sternschema: 8 Fakten × 14 Dimensionen | Referenz für Modellierung |
 | `learning/pd/project_exasol-vormonat-bestand.md` | Bekannte Lücke im alten `dbt/` | siehe 1.4 |
 
@@ -107,3 +107,47 @@ das stützt die Triage-Methodik selbst, nicht nur das Ergebnis.
    Zeilen `bi_delta_fc`) und 202401.
 4. **Weiterhin offen:** 202403-Delta-Lücke (1.1) — vor Nutzung dieses Monats
    in Gates klären, ob Absicht oder fehlender Export.
+
+## 4. Vier Architektur-Punkte aus Session 8 (Nutzer-Review)
+
+Nutzer-Review der Pipeline-Architektur, mit realen Quellskripten belegt
+(`learning/pd/pd_skripte_excluded/` — 4 neue Dateien: Kalenderfunktionen,
+OLAP-View-Prozedur). Bewusst dokumentiert, nicht überall sofort
+umgesetzt — s. jeweils „Konsequenz".
+
+**1. CSV→DB-Laden ist mehrdateifähig, nicht single-file.** Laut `PD
+Create Table.Template Tables.sql`: `xp_dirtree` listet alle Dateien im
+Import-Verzeichnis, ein Cursor iteriert über **jede gefundene Datei**
+und legt pro Datei eine eigene, nach dem exakten Dateinamen benannte
+Tabelle an. `PD LOAD.Bestandsuebernahme.sql` (Schritt 2) liest aus genau
+diesen dateispezifischen Tabellen, nicht aus einer festen `bi_delta_fc`.
+Pro Verarbeitungslauf können also mehrere FC-Dateien mit unterschiedlichen
+Zeitständen vorliegen. **Konsequenz:** `tools/load_reference_data.sh`
+bildet das bewusst vereinfacht ab (eine feste Datei pro Typ/Monat, kein
+Cursor). Für unseren dreimonatigen, einzeldateiigen Testkorpus ausreichend
+— bei echten Mehrdatei-Szenarien nicht repräsentativ. Nicht nachgebaut
+(Aufwand/Nutzen für den PoC nicht gerechtfertigt, s. ADR „so wenig Code
+wie möglich").
+
+**2+3. Verarbeitungsmonat ≠ Berichtsmonat — mit echter Formel belegt.**
+Eine Lieferung (Verarbeitungsmonat) kann mehrere Berichtsmonate enthalten;
+Monatsfilter (`@von_mon_id`/`@bis_mon_id`) wirken ausschließlich auf den
+Berichtsmonat. Vollständig aufgelöst: `skills/transpile/
+kennzahl-berichtszeitraum.md`, `dbt/macros/kennzahl_zeitraum.sql`. War
+zuvor eine `[Annahme]`, jetzt durch `learning/pd/pd_skripte_excluded/
+UEB Kalender Dimensionen.td_ueb_kalender_KennzahlZeitraum.sql` belegt —
+siehe `docs/session7-compare.md` für den Fund, der die Annahme widerlegt
+hat.
+
+**4. Teil-SQL-Klassifikation (Logging-/Drop-Prozeduren) vorab
+entscheiden.** Boilerplate-Aufrufe wie `up_ueb_log_Meldung`,
+`up_ueb_log_CreateTable`, `up_ueb_object_droptable/DropTable/
+DropFunction`, `up_ueb_object_CreateView` sind nie migrationsrelevant —
+reine Protokollierung/Aufräumarbeit der alten Ablaufsteuerung, nicht
+Fachlogik. `tools/extract.py`/`render_dbt_models.py` behandeln das
+bereits implizit richtig (`EXEC`-Aufrufe zählen nicht als Schreib-
+Statement, siehe `WRITE_TYPES` in `extract.py`), aber nie explizit
+benannt. **Konsequenz:** `skills/transpile/boilerplate-prozeduren.md`
+als Referenzliste angelegt — für Qwen, damit es diese Aufrufe beim
+Lesen eines neuen Quellskripts sofort als „ignorieren" erkennt, statt
+jedes Mal neu zu bewerten.

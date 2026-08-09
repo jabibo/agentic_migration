@@ -92,4 +92,58 @@ cat > dbt/macros/month_add.sql <<'EOF'
 {% endmacro %}
 EOF
 
-echo "dbt/ Scaffold geschrieben: dbt_project.yml, profiles.yml, macros/{generate_schema_name,schema_for,month_add}.sql"
+# ErsterMonat/LetzterMonat je Kennzahl -- KEINE Annahme mehr, sondern aus
+# der echten Quelle uebernommen: learning/pd/pd_skripte_excluded/
+# UEB Kalender Dimensionen.td_ueb_kalender_KennzahlZeitraum.sql (Zeilen
+# 90-97, 102-110). uf_ueb_kalender_Kennzahl() ist dort ein reines Lookup
+# gegen eine Tabelle, die AUS DIESER Formel befuellt wird -- die Formel
+# selbst ist die Quelle der Wahrheit, nicht die Lookup-Tabelle.
+# [Quelle: learning/pd/pd_skripte_excluded/UEB Kalender Dimensionen.
+#  td_ueb_kalender_KennzahlZeitraum.sql] -- widerlegt die fruehere
+# [Annahme] "ErsterMonat==LetzterMonat==Verarbeitungsmonat" aus Session 3/4
+# (siehe skills/transpile/exasol-dialect-gotchas.md, docs/session7-compare.md).
+#
+# Parameter nur fuer die 8 migrierten PD-Kennzahlen (701-711 ohne 721,
+# das ist excluded) -- nicht die volle FIS-Tabelle mit >40 Kennzahlen.
+# Alle 8 haben anzahl_berichtsmonate=60, diff_bm_letzter_monat=0; nur
+# min_erster_monat unterscheidet sich (702/703 hart auf 201501, sonst
+# dynamischer 4-Jahres-Boden).
+cat > dbt/macros/kennzahl_zeitraum.sql <<'EOF'
+{% macro knz_zeitraum_params(knz) %}
+  {%- set params = {
+      "701": {"anzahl": 60, "diff": 0, "min_erster_monat": none},
+      "702": {"anzahl": 60, "diff": 0, "min_erster_monat": 201501},
+      "703": {"anzahl": 60, "diff": 0, "min_erster_monat": 201501},
+      "705": {"anzahl": 60, "diff": 0, "min_erster_monat": none},
+      "706": {"anzahl": 60, "diff": 0, "min_erster_monat": none},
+      "708": {"anzahl": 60, "diff": 0, "min_erster_monat": none},
+      "709": {"anzahl": 60, "diff": 0, "min_erster_monat": none},
+      "711": {"anzahl": 60, "diff": 0, "min_erster_monat": none}
+  } -%}
+  {%- if knz|string not in params -%}
+    {{ exceptions.raise_compiler_error(
+        "knz_zeitraum_params: unbekannte Kennzahl '" ~ knz ~ "' -- Parameter aus "
+        ~ "td_ueb_kalender_KennzahlZeitraum ergaenzen, nicht raten.") }}
+  {%- endif -%}
+  {{ return(params[knz|string]) }}
+{% endmacro %}
+
+{% macro knz_letzter_monat(knz) %}
+  {%- set p = knz_zeitraum_params(knz) -%}
+  {%- set vm = var("verarbeitungsmonat")|int -%}
+  {%- set total = (vm // 100) * 12 + (vm % 100) - 1 + p.diff -%}
+  {{ return((total // 12) * 100 + (total % 12) + 1) }}
+{% endmacro %}
+
+{% macro knz_erster_monat(knz) %}
+  {%- set p = knz_zeitraum_params(knz) -%}
+  {%- set vm = var("verarbeitungsmonat")|int -%}
+  {%- set vm_year = vm // 100 -%}
+  {%- set total = (vm // 100) * 12 + (vm % 100) - 1 - (p.anzahl - 1) -%}
+  {%- set rolling = (total // 12) * 100 + (total % 12) + 1 -%}
+  {%- set floor = p.min_erster_monat if p.min_erster_monat is not none else (vm_year - 4) * 100 + 1 -%}
+  {{ return([rolling, floor] | max) }}
+{% endmacro %}
+EOF
+
+echo "dbt/ Scaffold geschrieben: dbt_project.yml, profiles.yml, macros/{generate_schema_name,schema_for,month_add,kennzahl_zeitraum}.sql"
