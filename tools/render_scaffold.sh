@@ -237,4 +237,52 @@ cat > dbt/macros/delta_multifile.sql <<'EOF'
 {% endmacro %}
 EOF
 
-echo "dbt/ Scaffold geschrieben: dbt_project.yml, profiles.yml, macros/{generate_schema_name,schema_for,month_add,kennzahl_zeitraum,delta_multifile}.sql"
+# KNZ-709-Handoff (Session 10, Batch-Lauf): docs/systemkontext.md B.6
+# dokumentiert seit frueherer Session ein Makro behinderung_bit()
+# (dbt/macros/pd_helpers.sql), das nie tatsaechlich gebaut wurde --
+# reine Doku-Leiche. Qwen hat den dokumentierten Namen korrekt benutzt
+# (4-Parameter-Aufruf, genau passend zu pd_beh_1..pd_beh_4), G0-COMPILE
+# scheiterte am fehlenden Makro selbst -- kein Qwen-Fehler.
+# Quelle der Bitmaske: source_references/pd/pd_skripte/PD KNZ 709.
+# uf_pd_Behinderung_Key.sql (Einzelwert-Lookup) + PD KNZ 709.KNZ 709.sql
+# Zeilen 57-60 (Kombination per bitweisem OR ueber die 4 Felder) --
+# nicht geraten, aus der echten Quelle uebernommen. Exasol kennt kein
+# T-SQL-"|"-Infix, deshalb BIT_OR() (Skalarfunktion, 2 Argumente,
+# verschachtelt fuer 4 Werte).
+cat > dbt/macros/pd_helpers.sql <<'EOF'
+{% macro uf_pd_behinderung_key(code_expr) %}
+  CASE
+    WHEN {{ code_expr }} = 11040 THEN 1
+    WHEN {{ code_expr }} = 11041 THEN 2
+    WHEN {{ code_expr }} = 11042 THEN 4
+    WHEN {{ code_expr }} = 11008 THEN 8
+    WHEN {{ code_expr }} = 11010 THEN 16
+    WHEN {{ code_expr }} = 11043 THEN 32
+    WHEN {{ code_expr }} = 11016 THEN 64
+    WHEN {{ code_expr }} = 11035 THEN 128
+    WHEN {{ code_expr }} = 11044 THEN 256
+    WHEN {{ code_expr }} = 11045 THEN 512
+    WHEN {{ code_expr }} = 11046 THEN 1024
+    WHEN {{ code_expr }} = 11047 THEN 2048
+    WHEN COALESCE({{ code_expr }}, 0) NOT IN
+      (0, 11040, 11041, 11042, 11008, 11010, 11043, 11016, 11035, 11044, 11045, 11046, 11047)
+      THEN 4096
+    ELSE 0
+  END
+{% endmacro %}
+
+{% macro behinderung_bit(beh1, beh2, beh3, beh4) %}
+  BIT_OR(
+    BIT_OR(
+      BIT_OR(
+        ({{ uf_pd_behinderung_key(beh1) }}),
+        ({{ uf_pd_behinderung_key(beh2) }})
+      ),
+      ({{ uf_pd_behinderung_key(beh3) }})
+    ),
+    ({{ uf_pd_behinderung_key(beh4) }})
+  )
+{% endmacro %}
+EOF
+
+echo "dbt/ Scaffold geschrieben: dbt_project.yml, profiles.yml, macros/{generate_schema_name,schema_for,month_add,kennzahl_zeitraum,delta_multifile,pd_helpers}.sql"
