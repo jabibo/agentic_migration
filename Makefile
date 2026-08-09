@@ -1,4 +1,4 @@
-.PHONY: extract transpile gate compare report clean load-data load-dims load-delta
+.PHONY: extract transpile gate compare report clean load-data load-dims load-delta render-a
 
 PY ?= python3
 MONAT ?= 202312
@@ -18,18 +18,22 @@ load-dims:
 load-delta:
 	bash tools/load_reference_data.sh $(MONAT) --delta-only
 
-# Session 3 (siehe CLAUDE.md, Sessionfolge): Klasse-B/C-Objekte an Qwen/OpenCode
-# uebergeben. Existiert noch nicht -- Klasse A ist bereits per extract.py (P4)
-# deterministisch vorgeschlagen, braucht kein LLM.
+# Materialisiert alle Klasse-A-Objekte als dbt-Modelle (vollstaendig generisch,
+# kein Objektname im Code -- siehe tools/render_dbt_models.py Docstring).
+render-a: extract
+	$(PY) tools/render_dbt_models.py
+
+# Klasse-B/C-Objekte an Qwen/OpenCode uebergeben. Noch nicht implementiert
+# (Session 4/5, siehe CLAUDE.md) -- Klasse A ist bereits per render-a
+# deterministisch erledigt, braucht kein LLM.
 transpile:
-	@echo "transpile: noch nicht implementiert (Session 3, siehe CLAUDE.md)" >&2
+	@echo "transpile: noch nicht implementiert (Session 4, siehe CLAUDE.md)" >&2
 	@exit 1
 
-# Session 3: sqlfluff --dialect exasol (G0), dbt parse/run gegen Ephemeral-Schema (G1),
-# Fehlerkanal auf eine Zeile normalisiert.
-gate:
-	@echo "gate: noch nicht implementiert (Session 3, siehe CLAUDE.md)" >&2
-	@exit 1
+# G0 (sqlfluff --dialect exasol auf kompiliertes SQL) + G1 (dbt run gegen
+# Schema-je-Monat). Fehlerkanal auf eine Zeile normalisiert. MONAT=<YYYYMM>.
+gate: render-a
+	bash tools/gate.sh $(MONAT)
 
 # Session 3: G2-G5 (Schema-/Datenaequivalenz, Tests, Idempotenz). Read-only fuer
 # den Agenten -- AGENTS.md verbietet Qwen den Aufruf zur Selbstoptimierung.

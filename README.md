@@ -14,6 +14,7 @@ das durch Promotion in Code wieder schrumpft statt zu wachsen.
 | Fachlicher Originalkontext (Referenzverfahren BPS/PD) | [docs/systemkontext.md](docs/systemkontext.md) |
 | Aktueller Stand: wieviel ist deterministisch (Triage A/B/C)? | `make extract` → [reports/triage.md](reports/triage.md) |
 | Woher kommen Test-/Referenzdaten (Dimensionen, Deltas, Erwartungswerte)? | [docs/datenlage.md](docs/datenlage.md) |
+| Laufen die Gates? Was haben sie gefunden? | [docs/session3-gates.md](docs/session3-gates.md) — `make gate MONAT=202312` |
 
 ## Schnellstart
 

@@ -66,17 +66,17 @@ Ansatz nicht.
 
 ## Sessionfolge (ein Pass pro Session, mit echtem Testlauf)
 
-1. **`tools/extract.py` + Triage-Report** ← aktuelle Session. Ergebnis:
-   Tabelle „x Skripte, y Statements, Verteilung A/B/C". Sagt, ob der PoC
-   trägt, bevor ein Token in Qwen investiert wird.
-2. DAG-Kreuzprüfung entfällt hier bewusst — keine separate
-   Ablaufsteuerungs-Tabelle vorhanden/nötig, Reihenfolge ergibt sich aus
-   der AST-Lineage selbst (siehe ADR).
-3. Gates + Makefile: `sqlfluff --dialect exasol`, `dbt parse`, `dbt run`
-   gegen Ephemeral-Schema, `compare.sh`. Fehlerkanal auf eine Zeile
-   normalisiert (`E EXA-0002 stmt=12 col=BA_SCHL rule=case-folding`).
-4. `AGENTS.md` + `skills/` aus den echten Gate-Ausgaben ableiten, nicht aus
-   Vermutung.
+1. **`tools/extract.py` + Triage-Report** ✅. Ergebnis: A=20% B=40% C=33%
+   excluded=6% (15 Objekte). Extern bestätigt, siehe `docs/datenlage.md`.
+2. DAG-Kreuzprüfung entfällt bewusst — keine separate Ablaufsteuerungs-
+   Tabelle nötig, Reihenfolge ergibt sich aus der AST-Lineage (ADR).
+3. **Gates + Makefile** ✅ (`tools/gate.sh`, `make gate MONAT=<YYYYMM>`,
+   Details/echte Laufergebnisse: `docs/session3-gates.md`). `compare.sh`
+   (G2–G5) noch offen — braucht eine vollständige DAG (Klasse B/C
+   migriert), nicht sinnvoll vor Session 4/5.
+4. `AGENTS.md` + `skills/` aus den echten Gate-Ausgaben ableiten (jetzt
+   möglich — drei reale Fehlerklassen liegen vor, `docs/session3-gates.md`),
+   nicht aus Vermutung. ← nächste Session.
 5. Übergabe an Qwen: OpenCode gegen das Repo als Working Directory, ein
    Objekt = ein Branch = ein Commit.
 

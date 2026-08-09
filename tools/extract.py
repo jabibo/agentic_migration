@@ -91,6 +91,8 @@ STMT_KEYWORDS = {
     "SELECT", "INSERT", "UPDATE", "DELETE", "EXEC", "EXECUTE", "DECLARE",
     "CREATE", "ALTER", "DROP", "USE", "TRUNCATE", "MERGE", "IF", "WHILE", "WITH",
 }
+# SET ist eigenstaendiges Statement (SET NOCOUNT ON, SET @var = ...) AUSSER
+# direkt nach UPDATE (dessen SET-Klausel) -- dort nicht schneiden.
 _TOKEN_RE = re.compile(
     r"--[^\n]*"                       # Zeilenkommentar
     r"|/\*.*?\*/"                     # Blockkommentar
@@ -109,6 +111,7 @@ def split_statements(batch: str) -> list[str]:
     cuts = []
     paren_depth = 0
     block_depth = 0
+    after_update = False  # naechstes SET ist die UPDATE-Klausel, nicht eigenstaendig
     for m in _TOKEN_RE.finditer(batch):
         tok = m.group(0)
         if tok == "(":
@@ -126,10 +129,12 @@ def split_statements(batch: str) -> list[str]:
         if upper == "END":
             block_depth = max(0, block_depth - 1)
             continue
-        if paren_depth == 0 and block_depth == 0 and upper in STMT_KEYWORDS:
+        is_stmt_kw = upper in STMT_KEYWORDS or (upper == "SET" and not after_update)
+        if paren_depth == 0 and block_depth == 0 and is_stmt_kw:
             line_start = batch.rfind("\n", 0, m.start()) + 1
             if batch[line_start:m.start()].strip() == "":
                 cuts.append(m.start())
+                after_update = upper == "UPDATE"
 
     bounds = [0] + cuts + [len(batch)]
     stmts = []
@@ -160,28 +165,47 @@ DYNAMIC_SQL_RE = re.compile(r"sp_executesql|EXEC\s*\(", re.IGNORECASE)
 CURSOR_RE = re.compile(r"\bCURSOR\b", re.IGNORECASE)
 
 
-def table_key(t: exp.Table) -> str:
-    parts = [p for p in (t.catalog, t.db, t.name) if p]
-    return ".".join(parts) if parts else t.sql()
+def table_key(t: exp.Table, ambient_db: str | None = None) -> str:
+    """Kanonischer 'db.tabelle'-Bezeichner. 'dbo' ist T-SQLs Standard-Schema
+    und in diesem Datensatz NIE die tatsaechlich unterscheidende Datenbank --
+    egal ob es explizit dasteht (catalog.dbo.tabelle, 3-teilig) oder implizit
+    gemeint ist (dbo.tabelle bzw. nackt tabelle, aufgeloest ueber das
+    Batch-`USE <db>`): 'dbo' wird immer durch die wirkliche DB ersetzt.
+    Ohne das waeren z.B. 'con_pd_calc.dbo.x' (expliziter Verweis) und
+    'dbo.x' unter USE con_pd_calc (Ambient-Verweis auf dieselbe Tabelle)
+    zwei verschiedene Keys -- bricht jede ref()/source()-Zuordnung."""
+    catalog, db, name = t.catalog, t.db, t.name
+    if db and db.lower() == "dbo":
+        db = catalog or ambient_db
+        catalog = None
+    if catalog and db:
+        return f"{catalog}.{db}.{name}"
+    if db:
+        return f"{db}.{name}"
+    if catalog:
+        return f"{catalog}.{name}"
+    if ambient_db and name:
+        return f"{ambient_db}.{name}"
+    return t.sql()
 
 
-def statement_lineage(stmt: exp.Expression) -> dict:
+def statement_lineage(stmt: exp.Expression, ambient_db: str | None = None) -> dict:
     kind = type(stmt).__name__
     target = None
     if isinstance(stmt, exp.Select) and stmt.args.get("into"):
         into_table = stmt.args["into"].this
         if isinstance(into_table, exp.Table):
-            target = table_key(into_table)
+            target = table_key(into_table, ambient_db)
         kind = "SelectInto"
     elif isinstance(stmt, WRITE_TYPES):
         this = stmt.this
         tbl = this.this if isinstance(this, exp.Schema) else this
         if isinstance(tbl, exp.Table):
-            target = table_key(tbl)
+            target = table_key(tbl, ambient_db)
 
     sources = set()
     for t in stmt.find_all(exp.Table):
-        key = table_key(t)
+        key = table_key(t, ambient_db)
         if key != target:
             sources.add(key)
 
@@ -261,6 +285,8 @@ def process_file(path: Path) -> ObjectResult:
         file=path.name, unknown_placeholders=unknown, all_commented=not _has_code(rewritten)
     )
 
+    ambient_db = None  # ueberlebt GO-Batchgrenzen (GO trennt nur Sende-Batches,
+    # kein Session-Reset) -- nur ein neues USE-Statement aendert es.
     for batch in split_batches(rewritten):
         for chunk in split_statements(batch):
             try:
@@ -270,7 +296,9 @@ def process_file(path: Path) -> ObjectResult:
                 continue
             if stmt is None:
                 continue
-            lineage = statement_lineage(stmt)
+            if isinstance(stmt, exp.Use) and isinstance(stmt.this, exp.Table):
+                ambient_db = table_key(stmt.this)
+            lineage = statement_lineage(stmt, ambient_db)
             raw_stmt_sql = stmt.sql(dialect="tsql")
             lineage["_cursor"] = bool(CURSOR_RE.search(raw_stmt_sql))
             lineage["_dynamic_sql"] = bool(DYNAMIC_SQL_RE.search(raw_stmt_sql))

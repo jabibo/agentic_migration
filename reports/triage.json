@@ -102,7 +102,7 @@
     "file": "PD KNZ INIT.NEO_org_Zuordnung.sql",
     "class": "A",
     "reason": "2 ziel(e), je 1 schreibendes statement",
-    "statements": 9,
+    "statements": 10,
     "parse_errors": [],
     "unknown_placeholders": [],
     "transpile_failures": 0
@@ -111,7 +111,7 @@
     "file": "PD KNZ INIT.unplausibler Fallabschluss.sql",
     "class": "A",
     "reason": "1 ziel(e), je 1 schreibendes statement",
-    "statements": 6,
+    "statements": 7,
     "parse_errors": [],
     "unknown_placeholders": [],
     "transpile_failures": 0
@@ -120,7 +120,7 @@
     "file": "PD KNZ INIT.vd_pd_KalenderMonat.sql",
     "class": "C",
     "reason": "nur EXEC auf externe prozeduren, keine eigene schreiboperation",
-    "statements": 8,
+    "statements": 9,
     "parse_errors": [],
     "unknown_placeholders": [],
     "transpile_failures": 0
