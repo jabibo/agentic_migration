@@ -85,8 +85,22 @@
         // dieselbe Abwaegung wie bei der bestehenden edit-Bypass-Luecke):
         // schuetzt gegen normales Werkzeug-Verhalten, nicht gegen einen
         // absichtlich evasiven Agenten.
+        // TEST (docs/session10-rejection-mechanism.md): Catch-all von
+        // "ask" auf "deny" umgestellt. "ask" ist im Headless-Betrieb
+        // ohnehin faktisch immer eine Ablehnung (nichts kann es
+        // beantworten) -- das AENDERT NICHTS am Ergebnis einzelner
+        // Tool-Aufrufe. Laufzeit-verifiziert (30/30 Transkripte dieser
+        // Session): eine "ask"-Ablehnung beendet den gesamten Agenten-
+        // Loop sofort, ohne dass das Modell je einen weiteren Turn
+        // bekommt -- eine explizite "deny"-Ablehnung (1 beobachteter
+        // Fall) liess die Session dagegen normal weiterlaufen (64
+        // weitere Ereignisse). Hypothese: "deny" liefert dem Modell
+        // ein regulaeres Tool-Fehlerergebnis zurueck, "ask" bricht im
+        // Headless-Modus stattdessen den ganzen Prozess ab. Noch nicht
+        // breit bestaetigt (n=1 fuer den Vergleichsfall) -- deshalb
+        // hier als Test markiert, nicht als endgueltige Entscheidung.
         "bash": {
-          "*": "ask",
+          "*": "deny",
           "make gate MONAT=*": "allow",
           "make compare MONAT=*": "allow",
           "tools/exapump_select.sh *": "allow",
