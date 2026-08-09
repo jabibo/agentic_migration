@@ -129,9 +129,24 @@ Ansatz nicht.
    Cursor-Reihenfolge gewinnt bei Duplikat-Schlüssel — laufzeit-
    verifiziert non-regressiv gegen den Ein-Datei-Testkorpus. Details,
    zwei dabei gefundene Exasol-Fallstricke: `docs/datenlage.md` §4,
-   `skills/transpile/exasol-dialect-gotchas.md`. **Noch offen:** von
-   keinem Klasse-C-Modell adoptiert (darf ich nicht selbst tun) —
-   Qwen-Folgerunde vorbereiten.
+   `skills/transpile/exasol-dialect-gotchas.md`.
+
+   **Qwen-Folgerunde offenbart einen eigenen Methodik-Fehler**, nicht
+   nur einen Qwen-Bug — vollständig unbeschönigt: `docs/
+   session9-multifile-loading.md`. Kurz: Qwen adoptierte das Makro
+   korrekt für `tf_deltant_pd_fc.sql`, fehlerhaft für `..._fa/azt.sql`
+   (falsche `key_column`). Statt nur den G1-Fehler zurückzuspielen, habe
+   ich die Ursache selbst diagnostiziert und Qwen den Fix fast wörtlich
+   vorgegeben — Bauherr-Diagnose statt Gate-Feedback. Als die Folgerunde
+   daran scheiterte, dass `permission.bash: "ask"` im nicht-interaktiven
+   `opencode run` nie beantwortet wird (Qwen konnte `make gate` also gar
+   nicht selbst ausführen, keine Fortschrittsmöglichkeit), habe ich
+   `opencode.jsonc` reaktiv mit `--auto` umgangen statt den blockierten
+   Feedback-Loop als Befund stehen zu lassen — auf Nutzer-Einwand
+   abgebrochen, bevor Schaden entstand. Bug bleibt unkorrigiert auf
+   `qwen/bestand-multifile-adoption` (ungemerged), kein Ledger-Eintrag
+   (Qwen hat den Blocker nie selbst erkannt — ein von mir fabrizierter
+   Eintrag würde Qwens Selbstprotokoll verfälschen).
 
 **Runner-Entscheidung (statt `cline`):** [opencode.jsonc](opencode.jsonc)
 definiert den Agenten `migrator`. Grund für den Wechsel: OpenCodes
@@ -141,11 +156,20 @@ gewinnt") statt ihn nur als Konvention zu dokumentieren und per
 `git diff` nachträglich zu prüfen — im alten `without_macros/agentic`-
 Repo (cline) war das nur eine `AGENTS.md`-Regel.
 
-**Weiterhin offen** (nicht blockierend, aber ungelöst):
+**Weiterhin offen** (blockierend für Setup B, s. Session 9):
 - `permission.bash` steht auf `"ask"`, ist aber pfadunspezifisch — ein
   Bash-Aufruf könnte die `edit`-Sperre umgehen (z.B. `echo x > tools/y`).
-  Im ersten Lauf nicht passiert (`git diff` leer), aber nicht durch das
-  Tool selbst ausgeschlossen, nur durch den Nachcheck.
+  Bisher nicht passiert (`git diff` in jedem Lauf leer), aber nicht durch
+  das Tool selbst ausgeschlossen, nur durch den Nachcheck.
+- **Dieselbe Einstellung blockiert zugleich Qwens eigenen Feedback-Loop**
+  (Session 9, `docs/session9-multifile-loading.md`): `"ask"` kann in
+  nicht-interaktivem `opencode run` nie beantwortet werden, jeder
+  `bash`-Aufruf wird automatisch abgelehnt — auch die laut `AGENTS.md`
+  ausdrücklich erlaubten `make gate`/`make compare`. Qwen konnte in
+  keinem bisherigen headless-Lauf sein eigenes Gate-Ergebnis sehen.
+  Fraglich, ob Setup B damit bisher übehaupt wie vorgesehen getestet
+  wurde. Braucht eine bewusste Harness-Entscheidung (nicht reaktiv
+  mitten in einem Lauf, s. Session-9-Nachtrag oben) — ungelöst.
 - Kein Prompt-Caching im ersten Lauf (`docs/session5-qwen-run.md`) — bei
   158 Schritten $1.70 für ein kleines Klasse-B-Objekt. Vor größeren
   Objekten (KNZ 709, 17 Statements) im Auge behalten.
