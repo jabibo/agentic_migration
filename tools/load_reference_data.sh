@@ -11,10 +11,10 @@
 # Voraussetzung: Exasol erreichbar (`exapump sql -p napc "SELECT 1"`).
 #
 # Aufruf:
-#   bash tools/load_reference_data.sh <YYYYMM> [--dims-only|--delta-only]
+#   bash tools/load_reference_data.sh <YYYYMM> [--dims-only|--delta-only|--views-only]
 set -euo pipefail
 
-MONAT="${1:?Aufruf: tools/load_reference_data.sh <YYYYMM> [--dims-only|--delta-only]}"
+MONAT="${1:?Aufruf: tools/load_reference_data.sh <YYYYMM> [--dims-only|--delta-only|--views-only]}"
 MODE="${2:-all}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -76,10 +76,32 @@ load_delta() {
     fi
 }
 
+# con_pd_knz-Delivery-Views, die als externe Quellen deklariert sind
+# (dbt/models/sources.yml) aber im Quellsystem nicht als Tabelle/View
+# vorliegen -- POC-Ersatz per Rohdimension + Pass-Through-View. Neue
+# Views hier ergaenzen, sobald weitere Luecken bekannt sind (z.B.
+# vd_as_bps_Region, td_ueb_kalender_Tag -- siehe docs/session6-bestand-run.md).
+load_knz_views() {
+    local dim_schema knz_schema
+    dim_schema="$(schema_for dim "$MONAT")"
+    knz_schema="$(schema_for knz "$MONAT")"
+    echo "==> KNZ-Delivery-Views -> $knz_schema"
+    exapump sql -p "$PROFILE" "CREATE SCHEMA IF NOT EXISTS $knz_schema" >/dev/null
+
+    # con_pd_knz.vd_pd_dienststelle (Bruecke ba_schl -> org_id): im
+    # Quellsystem nicht in verwertbarem Format vorhanden (docs/systemkontext.md
+    # B.6). POC-Ersatz: reiner Pass-Through auf die geladene Rohdimension,
+    # "dieselbe Abbildung" -- keine Transformation, keine Fachentscheidung.
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_pd_dienststelle AS
+        SELECT \"ba_schl\", \"org_id\" FROM ${dim_schema}.vd_as_pd_dienststelle" >/dev/null
+    echo "    1 View erstellt (vd_pd_dienststelle)."
+}
+
 case "$MODE" in
     --dims-only) load_dimensions ;;
     --delta-only) load_delta ;;
-    all) load_dimensions; load_delta ;;
+    --views-only) load_knz_views ;;
+    all) load_dimensions; load_delta; load_knz_views ;;
     *) echo "FEHLER: unbekannter Modus '$MODE'" >&2; exit 1 ;;
 esac
 
