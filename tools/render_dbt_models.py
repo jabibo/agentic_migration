@@ -24,7 +24,14 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from extract import rewrite_placeholders, split_batches, split_statements, table_key  # noqa: E402
+from extract import (  # noqa: E402
+    find_month_range_vars,
+    fix_exasol_quirks,
+    rewrite_placeholders,
+    split_batches,
+    split_statements,
+    table_key,
+)
 
 import sqlglot  # noqa: E402
 from sqlglot import exp  # noqa: E402
@@ -57,6 +64,12 @@ def role_and_db(db: str | None) -> tuple[str | None, str | None]:
     return ROLE_BY_DB.get(short), short
 
 
+# T-SQL-UDF -> dbt-Makro, reine Infrastruktur (Kalenderarithmetik ohne
+# Fachwissen), siehe tools/render_scaffold.sh:month_add fuer die Herleitung
+# und den [Annahme]-Hinweis.
+FUNC_MAP = {"uf_ueb_kalender_monatadd": "month_add"}
+
+
 def parse_all_statements(path: Path):
     raw = path.read_text(encoding="utf-8", errors="replace")
     rewritten, _ = rewrite_placeholders(raw)
@@ -76,13 +89,23 @@ def parse_all_statements(path: Path):
     return out
 
 
-def render_select_body(stmt: exp.Select, ambient_db: str | None, ref_map: dict) -> tuple[str, set]:
-    """Gibt (SQL mit ref()/source(), Menge der externen (db,table)-Quellen) zurueck."""
+def render_select_body(
+    stmt: exp.Select, ambient_db: str | None, ref_map: dict, month_range_vars: dict
+) -> tuple[str, set]:
+    """Gibt (SQL mit ref()/source()/Makro-Aufrufen, Menge externer (db,table)-Quellen) zurueck."""
     select = stmt.copy()
     select.set("into", None)
     placeholders = {}
     external_sources = set()
-    for i, t in enumerate(select.find_all(exp.Table)):
+    counter = [0]
+
+    def new_ph(jinja: str) -> str:
+        ph = f"XJINJAX{counter[0]}X"
+        counter[0] += 1
+        placeholders[ph] = jinja
+        return ph
+
+    for t in list(select.find_all(exp.Table)):
         key = table_key(t, ambient_db)
         if key in ref_map:
             jinja = "{{ ref('%s') }}" % ref_map[key]
@@ -96,13 +119,35 @@ def render_select_body(stmt: exp.Select, ambient_db: str | None, ref_map: dict) 
                 )
             external_sources.add((short_db, tbl))
             jinja = "{{ source('%s', '%s') }}" % (short_db, tbl)
-        ph = f"XJINJAX{i}X"
-        placeholders[ph] = jinja
-        t.replace(exp.to_table(ph))
+        t.replace(exp.to_table(new_ph(jinja)))
+
+    # T-SQL-UDF-Aufrufe (dbo.uf_ueb_kalender_MonatAdd(...) o.ae.) -> dbt-Makro.
+    # Argumente sind rohes SQL (CAST/TRY_CAST/...), das Jinja NICHT als
+    # Jinja-Ausdruck parsen kann ("AS" ist kein gueltiges Jinja-Token) --
+    # deshalb als Jinja-String-Literal uebergeben; das Makro gibt sie
+    # unescaped als SQL-Text zurueck ({{ arg }} innerhalb des Makros).
+    for node in list(select.find_all(exp.Anonymous)):
+        name = (node.name or "").lower()
+        if name not in FUNC_MAP:
+            continue
+        args = [
+            '"%s"' % a.sql(dialect="exasol").replace("\\", "\\\\").replace('"', '\\"')
+            for a in node.expressions
+        ]
+        jinja = "{{ %s(%s) }}" % (FUNC_MAP[name], ", ".join(args))
+        root = node.parent if isinstance(node.parent, exp.Dot) and node.parent.expression is node else node
+        root.replace(exp.column(new_ph(jinja)))
+
+    # T-SQL-Lokalvariablen aus dem ErsterMonat/LetzterMonat-Boilerplate.
+    for node in list(select.find_all(exp.Parameter)):
+        if node.name in month_range_vars:
+            jinja = "{{ var('%s') }}" % month_range_vars[node.name]
+            node.replace(exp.column(new_ph(jinja)))
+
     sql = select.sql(dialect="exasol", pretty=True)
     for ph, jinja in placeholders.items():
         sql = sql.replace(ph, jinja)
-    return sql, external_sources
+    return fix_exasol_quirks(sql), external_sources
 
 
 def main() -> int:
@@ -148,7 +193,10 @@ def main() -> int:
         if not found:
             raise SystemExit(f"Ziel {target_key!r} nicht wiedergefunden in {row['file']} (P0-P2 deterministisch?).")
         stmt, ambient_db = found
-        body, externals = render_select_body(stmt, ambient_db, ref_map)
+        raw = path.read_text(encoding="utf-8", errors="replace")
+        rewritten, _ = rewrite_placeholders(raw)
+        month_range_vars = find_month_range_vars(rewritten)
+        body, externals = render_select_body(stmt, ambient_db, ref_map, month_range_vars)
         all_external |= externals
 
         role_dir = out_dir / role

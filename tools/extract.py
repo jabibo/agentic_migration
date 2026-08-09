@@ -69,6 +69,28 @@ def rewrite_placeholders(sql: str) -> tuple[str, list[str]]:
     return PLACEHOLDER_RE.sub(_sub, sql), unknown
 
 
+# Boilerplate-Erkennung: @von = ErsterMonat, @bis = LetzterMonat FROM
+# dbo.uf_ueb_kalender_Kennzahl(...) -- identisch in 8/9 Kennzahl-Skripten
+# (grep-bestaetigt), Spaltennamen sind selbstbeschreibend (kein Fachwissen
+# von uns erfunden). [Annahme]: im Schema-je-Monat-Modell ist Erster==Letzter
+# ==Verarbeitungsmonat (Einzelmonats-Verarbeitung ist die Norm, siehe
+# docs/systemkontext.md) -- nicht aus dem Quellcode von uf_ueb_kalender_
+# Kennzahl() selbst verifiziert, den wir nicht besitzen.
+MONTH_RANGE_RE = re.compile(
+    r"@(\w+)\s*=\s*ErsterMonat.*?@(\w+)\s*=\s*LetzterMonat"
+    r".*?FROM\s+(?:dbo\.)?uf_ueb_kalender_Kennzahl",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def find_month_range_vars(rewritten_sql: str) -> dict[str, str]:
+    """@von_mon_id/@bis_mon_id (oder wie auch immer benannt) -> 'verarbeitungsmonat'."""
+    m = MONTH_RANGE_RE.search(rewritten_sql)
+    if not m:
+        return {}
+    return {m.group(1): "verarbeitungsmonat", m.group(2): "verarbeitungsmonat"}
+
+
 # --------------------------------------------------------------------------
 # P1 -- Batch-Split (GO) und Statement-Split (Zeilenanfang + Klammer-/Block-Tiefe)
 # --------------------------------------------------------------------------
@@ -230,9 +252,22 @@ def is_control_flow_command(lineage: dict, raw_stmt_sql: str) -> bool:
     return not raw_stmt_sql.strip().upper().startswith(("EXEC", "EXECUTE"))
 
 
+# Exasol kennt kein TRY_CAST -- sqlglot erzeugt es selbst als Artefakt seiner
+# eigenen CONVERT(...,<style>)-Uebersetzung (T-SQL CONVERT mit Formatcode,
+# z.B. 112 = YYYYMMDD), nicht weil die Quelle TRY_CONVERT verwendet
+# [laufzeit-verifiziert: TRY_CAST(...) scheitert an echtem Exasol mit
+# "syntax error, unexpected AS_"]. Reine Dialekt-Ersetzung, betrifft
+# 10/15 Objekte -- kein Fachentscheid, deshalb hier zentral, nicht je Objekt.
+_TRY_CAST_RE = re.compile(r"\bTRY_CAST\s*\(", re.IGNORECASE)
+
+
+def fix_exasol_quirks(sql: str) -> str:
+    return _TRY_CAST_RE.sub("CAST(", sql)
+
+
 def transpile_suggestion(stmt: exp.Expression) -> tuple[str | None, str | None]:
     try:
-        return stmt.sql(dialect="exasol"), None
+        return fix_exasol_quirks(stmt.sql(dialect="exasol")), None
     except Exception as e:  # sqlglot raises plain Exception subclasses on unsupported nodes
         return None, f"{type(e).__name__}: {e}"
 
