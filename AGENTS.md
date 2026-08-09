@@ -42,14 +42,16 @@ ist bereits deterministisch erledigt — fass sie nicht an.**
   erzeugt — das Ergebnis war wertlos. `exapump sql SELECT` (lesend) ist
   zur Fehlersuche in Ordnung.
 
-## Dein einziges Kommando
+## Deine Kommandos
 
 ```
-make gate MONAT=<YYYYMM>   # G0 (Syntax) + G1 (Ausfuehrung) gegen dein Modell
+make gate MONAT=<YYYYMM>      # G0 Syntax + G1 Ausfuehrung gegen dein Modell
+make compare MONAT=<YYYYMM>   # G2-G5, lesend, gegen echte Referenzdaten
 ```
 
 `make extract`/`make render-a` sind Bauherr-Werkzeuge (Klasse A) — nicht
-deine Aufgabe, nicht aufrufen. `make compare` (G2–G5) existiert noch nicht.
+aufrufen. `compare` darfst du lesend laufen lassen; ein G3-Fehler heisst:
+dein Objekt ist inhaltlich falsch, nicht der Vergleich.
 
 ## Abbruchkriterium
 

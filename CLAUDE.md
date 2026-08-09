@@ -46,7 +46,8 @@ agentic_migration/
 │  ├─ render_scaffold.sh      # dbt/dbt_project.yml, profiles.yml, macros/ reproduzierbar
 │  ├─ load_reference_data.sh  # Test-/Referenzdaten -> Exasol (exapump)
 │  ├─ gate.sh                 # G0 (sqlfluff)/G1 (dbt run), normalisierter Fehlerkanal ✅
-│  └─ compare.sh              # TODO Session 5+: G2–G5, read-only für den Agenten
+│  ├─ compare.sh              # G2-G5 gegen learning/pd/referenz/, read-only für den Agenten ✅
+│  └─ compare_data.py          # G2 Schema + G3 Datenaequivalenz (Zeilen-Hash), von compare.sh genutzt
 ├─ memory/rules/              # Regelgedächtnis, schrumpft durch Promotion in Code
 ├─ skills/                    # je Datei ein Thema, ≤ 40 Zeilen, Retrieval per rg
 │  └─ transpile/exasol-dialect-gotchas.md  # 3 laufzeit-verifizierte Faelle, s. docs/session3-gates.md
@@ -75,9 +76,12 @@ Ansatz nicht.
 2. DAG-Kreuzprüfung entfällt bewusst — keine separate Ablaufsteuerungs-
    Tabelle nötig, Reihenfolge ergibt sich aus der AST-Lineage (ADR).
 3. **Gates + Makefile** ✅ (`tools/gate.sh`, `make gate MONAT=<YYYYMM>`,
-   Details/echte Laufergebnisse: `docs/session3-gates.md`). `compare.sh`
-   (G2–G5) noch offen — braucht eine vollständige DAG (Klasse B/C
-   migriert), nicht sinnvoll vor Session 4/5.
+   Details/echte Laufergebnisse: `docs/session3-gates.md`).
+3b. **`compare.sh` (G2–G5)** ✅ (`make compare MONAT=<YYYYMM>`, Details:
+   `docs/session7-compare.md`). Findet beim ersten Lauf gegen echte
+   Referenzdaten sofort einen inhaltlichen Fehler in `tf_pd_knz_705`
+   (Klasse B, G0/G1 bis dahin „grün"): fehlende Spalte, 13 statt 20
+   Zeilen — Ursache noch offen. Genau der Beweis, den G2-G5 liefern soll.
 4. **`AGENTS.md` + `skills/`** ✅. Ledger-Schema in `AGENTS.md` definiert
    (existierte vorher nur als Wort, kein Format); dabei einen echten
    Widerspruch gefunden und behoben — `AGENTS.md` verlangte Ledger-

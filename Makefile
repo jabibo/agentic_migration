@@ -35,11 +35,13 @@ transpile:
 gate: render-a
 	bash tools/gate.sh $(MONAT)
 
-# Session 3: G2-G5 (Schema-/Datenaequivalenz, Tests, Idempotenz). Read-only fuer
-# den Agenten -- AGENTS.md verbietet Qwen den Aufruf zur Selbstoptimierung.
+# G2 (Schema-Aequivalenz) + G3 (Datenaequivalenz gegen learning/pd/referenz/)
+# + G4 (dbt-Tests) + G5 (Idempotenz). Read-only fuer den Agenten -- tools/
+# ist in opencode.jsonc schreibgeschuetzt, AGENTS.md verbietet den Aufruf
+# zur Selbstoptimierung ohnehin. MONAT=<YYYYMM>.
 compare:
-	@echo "compare: noch nicht implementiert (Session 3, siehe CLAUDE.md)" >&2
-	@exit 1
+	.venv/bin/python3 -c "import pandas" 2>/dev/null || uv pip install --python .venv pandas pyarrow
+	bash tools/compare.sh $(MONAT)
 
 report: extract
 	@cat reports/triage.md
