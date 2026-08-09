@@ -79,6 +79,19 @@ zuverlässig auffallen würde, sobald `tf_pd_knz_709.sql` den `&`-Fehler
 hinter sich hat. Bewusst nicht selbst behoben — Befund für Qwens
 nächste Runde, nicht für mich.
 
+**Zweiter Nachtrag, Nutzer-Einwand zu Recht:** dieselbe Grenzverletzung
+wie beim `bi_load_date`-Fund (Session 9) in neuer Form — die Frage nach
+mir selbst zu beantworten ist etwas anderes als die Antwort danach in
+Qwens nächsten Prompt zu geben. Die eigene SQL-Probe war legitime
+Verifikation (ist der Verdacht real oder nicht?), aber die Diagnose
+selbst (48/451, Ursache 11040-Füllwert, Kollisionsfall) darf nicht in
+die nächste Qwen-Runde einfließen — das ist genau die Arbeit, die G3 +
+Qwens eigene `exapump_select.sh`-Recherche leisten soll (wie bei 708
+bereits erfolgreich vorgeführt). Konsequenz: die nächste Runde für
+KNZ 709 bekommt ausschließlich den rohen G3-Fehlertext, keine Zeilenzahl,
+keine Ursachenerklärung — dieser Absatz bleibt Bauherr-Wissen, nicht
+Prompt-Inhalt.
+
 ## Batch-Ergebnisse (701, 702, 708, 709)
 
 Details je Objekt in den jeweiligen Commit-Botschaften auf
