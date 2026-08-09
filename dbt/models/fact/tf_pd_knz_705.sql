@@ -4,23 +4,23 @@
 
 SELECT
   1 AS Anzahl,
-  fc.ORG_ID,
-  fc.PD_TAE_DURCH,
-  fc.PD_RKS_ID,
+  fc."org_id",
+  fc."pd_tae_durch",
+  fc."pd_rks_id",
   CASE
-    WHEN COALESCE(fc.PD_ANZAHL_PT, 0) < 4 THEN COALESCE(fc.PD_ANZAHL_PT, 0)
+    WHEN COALESCE(fc."pd_anzahl_pt", 0) < 4 THEN COALESCE(fc."pd_anzahl_pt", 0)
     ELSE 4
   END AS PD_ANZAHL_PT_ID,
   CAST(LEFT(
-    CAST(CAST(TO_CHAR(fc.PD_ABSCHL_DAT, 'YYYYMMDD') AS VARCHAR(8)) AS LONG VARCHAR),
+    CAST(CAST(TO_CHAR(fc."pd_abschl_dat", 'YYYYMMDD') AS VARCHAR(8)) AS LONG VARCHAR),
     6
   ) AS INT) AS MON_ID
 FROM {{ ref('tf_pd_fc') }} AS fc
-WHERE fc.PD_ABSCHL_ART = 10010
-  AND fc.PD_VERANL_STL <> 23006
-  AND fc.PD_TAE_DURCH IN (2003, 2006)
-  AND fc.PD_FEHL_TYP = 0
+WHERE fc."pd_abschl_art" = 10010
+  AND fc."pd_veranl_stl" <> 23006
+  AND fc."pd_tae_durch" IN (2003, 2006)
+  AND fc."pd_fehl_typ" = 0
   AND CAST(LEFT(
-    CAST(CAST(TO_CHAR(fc.PD_ABSCHL_DAT, 'YYYYMMDD') AS VARCHAR(8)) AS LONG VARCHAR),
+    CAST(CAST(TO_CHAR(fc."pd_abschl_dat", 'YYYYMMDD') AS VARCHAR(8)) AS LONG VARCHAR),
     6
   ) AS INT) BETWEEN {{ var('verarbeitungsmonat') }} AND {{ var('verarbeitungsmonat') }}

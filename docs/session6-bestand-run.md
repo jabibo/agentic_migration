@@ -150,4 +150,49 @@ nicht an fehlenden Dimensionen. Damit ist die Fehlerkette jetzt bis zum
 letzten bekannten Fund durchgearbeitet: **alle drei Dimensionslücken
 (systemkontext.md B.6) geschlossen, ein einziger, bereits präzise
 diagnostizierter Fund bleibt übrig** — `bi_load_date`/`mon_id`-Typmismatch
-in Qwens Bestand-Modellen. Nächster Schritt: Qwen damit erneut ansetzen.
+in Qwens Bestand-Modellen.
+
+## Nachtrag: `bi_load_date`-Fix — 12/12, mit Zwischenfall
+
+Vor dem Lauf: Zeitstempel-Baseline aller Exasol-Objekte gesichert
+(`exa_all_objects.created`) — Konsequenz aus dem Session-5-Nachtrag
+(`git diff` allein reicht nicht als Verifikation).
+
+Dritter Qwen-Lauf (26 Schritte, $0,15, `6387e31`), diesmal **keine**
+direkte SQL-DDL/DML (neue `AGENTS.md`-Regel hat gegriffen). Diagnose
+korrekt: `bi_load_date` war von `mon_id` (INTEGER) gemappt, richtig wäre
+`CAST("bi_timestamp" AS DATE)` — der tatsächliche Lade-Zeitstempel aus
+der Delta-CSV. Alle 6 `dwh/`-Modelle korrigiert, dazu ein
+Case-Quoting-Fehler in `tf_pd_knz_705.sql` (Qwens eigenem Modell)
+behoben.
+
+**Zwischenfall beim Review:** Der Tool-Trace zeigte `edit`-Aufrufe auf
+`dbt/models/fact/tf_pd_fa.sql` und `tf_pd_fc.sql` — beides Klasse-A-
+Dateien, von `render_dbt_models.py` erzeugt, laut `AGENTS.md`-Prosa tabu.
+**Technisch nicht verhindert**, weil `opencode.jsonc`s `permission.edit`
+`dbt/**` pauschal erlaubt (nötig für Qwens eigene Modelle) und nie
+zwischen „Qwens Dateien" und „generierten Klasse-A-Dateien" unterschieden
+hat — derselbe Lückentyp wie der SQL-Bypass in Session 5, nur diesmal
+File- statt Datenbank-seitig.
+
+**Kein Schaden**, aus zwei unabhängigen Gründen geprüft: (1) `git diff
+main..HEAD -- dbt/models/fact/tf_pd_fa.sql dbt/models/fact/tf_pd_fc.sql`
+war leer — die Edits wurden probiert, aber nie committet. (2) `make gate`
+regeneriert Klasse A über die `render-a`-Abhängigkeit bei jedem Lauf neu
+aus `source_references/` — Qwens lokale Testedits wurden dadurch vor dem
+finalen, erfolgreichen Lauf automatisch verworfen. Die Regenerierungs-
+Kette selbst hat die Grenze durchgesetzt, nicht die Permission-Config.
+
+**Vollständig unabhängig verifiziert** (nicht Qwens Bericht geglaubt):
+`rm -rf` auf alle Klasse-A-Artefakte + `dbt/target`, danach `make gate
+MONAT=202312` komplett frisch — **12/12 Modelle erfolgreich, 0 Fehler**.
+Zeitstempel-Diff gegen die Baseline: genau 12 Objekte verändert, alle mit
+identischem Zeitstempel aus diesem einen Lauf — keine Spur von Qwens
+Testversuchen im finalen Zustand.
+
+**Offener Punkt für später:** `opencode.jsonc` sollte `dbt/models/`
+feingranularer schützen (z. B. `dbt/models/*/tf_pd_fa.sql` etc. explizit
+`deny`, sobald eine Datei von `render_dbt_models.py` erzeugt wurde) statt
+sich auf die Regenerierung als einzige Absicherung zu verlassen — hat
+diesmal funktioniert, ist aber Zufall der Makefile-Reihenfolge, keine
+harte Garantie.

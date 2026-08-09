@@ -14,6 +14,6 @@ SELECT
     "pd_status",
     "pd_bez",
     "pd_kurzbez",
-    "mon_id" AS "bi_load_date",
+    CAST("bi_timestamp" AS DATE) AS "bi_load_date",
     "bi_timestamp" AS "bi_load_filename"
 FROM {{ schema_for('data') }}.bi_delta_azt
