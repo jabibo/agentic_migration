@@ -217,7 +217,11 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Build-Ergebnis (nicht committen, siehe docs/adr/0001-deterministik-first.md)
+# Build-Ergebnis (nicht committen, siehe docs/adr/0001-deterministik-first.md).
+# Ausnahme, bewusst: Klasse-B/C-Modelle (Qwens tatsaechliches Arbeitsergebnis,
+# nicht regenerierbar wie Klasse A) werden trotzdem committet -- per
+# `git add -f <pfad>`, siehe docs/session5-qwen-run.md. dbt/models/fact/
+# tf_pd_knz_705.sql ist das erste Beispiel.
 dbt/
 
 # Test-/Referenzdaten (Delta-CSVs, Dimensionen, Erwartungswerte) -- nicht

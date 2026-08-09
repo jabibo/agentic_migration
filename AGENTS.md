@@ -14,7 +14,8 @@ ist bereits deterministisch erledigt — fass sie nicht an.**
   (`agent.migrator.permission.edit`) verweigert Schreibzugriff auf diese
   Pfade technisch. Ein Versuch scheitert am Tool, nicht erst im Review.
   `ledger.jsonl` und `memory/rules/` sind explizit schreibbar (s.u.).
-- Ein Objekt = ein Branch = ein Commit.
+- Ein Objekt = ein Branch = ein Commit. `dbt/` ist `.gitignore`d (Klasse-A-
+  Build-Ergebnis) — dein Modell trotzdem committen: `git add -f dbt/models/...`.
 - Bei Blockade (Cursor, dynamisches SQL über Batch-Grenzen, EXEC unklar,
   3 Iterationen ohne Fortschritt): Zeile an `ledger.jsonl` anhängen —
   `{"objekt": "...", "klasse": "B|C", "status": "blocked", "grund": "...",

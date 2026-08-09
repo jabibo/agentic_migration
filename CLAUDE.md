@@ -84,8 +84,14 @@ Ansatz nicht.
    Einträge bei Blockade, `opencode.jsonc` verweigerte aber Schreibzugriff
    auf `ledger.jsonl`. `skills/transpile/exasol-dialect-gotchas.md` aus
    den drei Session-3-Funden (nicht aus Vermutung).
-5. Übergabe an Qwen: OpenCode gegen das Repo als Working Directory, ein
-   Objekt = ein Branch = ein Commit. ← nächste Session, offene Punkte s.u.
+5. **Übergabe an Qwen** ✅ (erstes Objekt: PD KNZ 705, Klasse B). Details,
+   Kosten, Funde: `docs/session5-qwen-run.md`. Modell-Treffer vor dem
+   eigentlichen Lauf verifiziert (`opencode export` → `modelID: qwen/
+   qwen3.6-35b-a3b`) — der alte cline-Fehler (`<cline-default>`) wurde
+   nicht wiederholt. Qwen hat einen echten Bug in `render_dbt_models.py`
+   gefunden (Alias-Verlust beim Platzhalter-Ersetzen), korrekt als fremden
+   Fehler gemeldet statt `tools/` anzufassen — behoben in `f0614a0`.
+   `git diff` gegen alle geschützten Pfade war leer.
 
 **Runner-Entscheidung (statt `cline`):** [opencode.jsonc](opencode.jsonc)
 definiert den Agenten `migrator`. Grund für den Wechsel: OpenCodes
@@ -95,17 +101,14 @@ gewinnt") statt ihn nur als Konvention zu dokumentieren und per
 `git diff` nachträglich zu prüfen — im alten `without_macros/agentic`-
 Repo (cline) war das nur eine `AGENTS.md`-Regel.
 
-Provider/Modell-ID sind gesetzt (`opencode.jsonc` → `model`). Offen vor
-Session 5:
-- Verifizieren, dass der Lauf tatsächlich Qwen trifft (nicht einen
-  Default) — `opencode debug agent migrator` zeigt die aufgelöste Config;
-  Session-Log/Export (`opencode export`) sollte das Modell nennen. Der
-  alte cline-Lauf in `without_macros/agentic` hatte genau diesen Fehler
-  (`<cline-default>` statt explizitem Modell) — nicht wiederholen.
+**Weiterhin offen** (nicht blockierend, aber ungelöst):
 - `permission.bash` steht auf `"ask"`, ist aber pfadunspezifisch — ein
   Bash-Aufruf könnte die `edit`-Sperre umgehen (z.B. `echo x > tools/y`).
-  Mitigiert nur durch den `git diff`-Check nach jedem Lauf, nicht durch
-  das Tool selbst. Vor Session 5 entscheiden, ob das reicht.
+  Im ersten Lauf nicht passiert (`git diff` leer), aber nicht durch das
+  Tool selbst ausgeschlossen, nur durch den Nachcheck.
+- Kein Prompt-Caching im ersten Lauf (`docs/session5-qwen-run.md`) — bei
+  158 Schritten $1.70 für ein kleines Klasse-B-Objekt. Vor größeren
+  Objekten (KNZ 709, 17 Statements) im Auge behalten.
 
 ## Betriebsregeln
 
