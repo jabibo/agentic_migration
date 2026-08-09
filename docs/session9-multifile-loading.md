@@ -87,12 +87,45 @@ Beide Male: `git diff` leer, keine geschützten Pfade berührt, kein
 Ledger-Eintrag (Qwen kam nie zu einer eigenen Schlussfolgerung). Zwei
 unterschiedliche vorzeitige Abbrüche, keiner permission- oder
 diagnose-bedingt (der `python3 -c`-Reject in Runde 2 war korrekt, keine
-Lücke) — sieht nach einer Turn-/Step-Grenze in nicht-interaktivem
-`opencode run` oder nach Tool-Calling-Instabilität des Modells selbst
-aus, nicht nach einem Harness-Fehler auf meiner Seite. Auf Nutzer-
-Entscheid nicht weiter aufgelöst (kein dritter Versuch, kein `-c`/
-`--continue`-Test) — als eigenständiger Reliability-Befund stehen
-gelassen.
+Lücke). Auf Nutzer-Entscheid zunächst nicht weiter aufgelöst (kein
+dritter Versuch, kein `-c`/`--continue`-Test).
+
+### Nachtrag: Cross-Session-Check — das `"unknown"`-Tool-Symptom ist nicht neu
+
+Auf Nutzerfrage („zeigt sich das auch in früheren Sessions?") direkt in
+`opencode`s eigener Session-Datenbank nachgesehen (`~/.local/share/
+opencode/opencode.db`, SQLite — enthält die vollständige Nachrichten-
+historie aller bisherigen `opencode run`-Sessions, nicht nur die
+JSONL-Mitschriften dieser Session). Ergebnis, über alle 13 bisherigen
+Sessions:
+
+| Session | `"unknown"`-Tool-Fehler | Ausgang |
+|---|---|---|
+| `Bestand-Migration` (Session 6, Original) | 11 | **erholt** — Session läuft weiter bis zu echtem `edit` + Abschlusstext |
+| `Bestand-Review-Fix` (Session 6, Folgerunde) | 12 | **erholt** — dito |
+| `KNZ705-Migration`, `bi_load_date-Fix`, `KNZ705-Berichtszeitraum-Fix` | 0–2, andere Ursache | unauffällig |
+| Session 9 unaided Runde 1 | passt zum Muster | **nicht erholt** — Session endet mitten im Fehler |
+| Session 9 unaided Runde 2 | 0 (anderer Abbruchgrund, s.o.) | **nicht erholt** |
+
+Entscheidend: in beiden Session-6-Läufen sind die Fehler über den
+gesamten Sessionverlauf verteilt (bei 28–84 % der Gesamtlänge), immer
+wieder von normal erfolgreichen Tool-Calls umgeben — das Modell/die
+Runtime hat den Fehler also bisher **routinemäßig weggesteckt** und ist
+einfach weitergelaufen, beide Male bis zu einem echten Ergebnis. Das
+Symptom selbst ist damit **kein neuer Session-9-Befund**, sondern
+mindestens seit Session 6 vorhanden, nur bisher folgenlos geblieben,
+weil es sich offenbar meist von selbst erholt.
+
+**Konsequenz für die Interpretation:** die 0/2-Autonomierate der beiden
+unaided Runden ist wahrscheinlich **nicht** aussagekräftig für Qwens
+Fähigkeit, diesen konkreten Bug zu lösen — plausibler ist eine ganz
+gewöhnliche, vorbestehende Infrastruktur-Unzuverlässigkeit (OpenRouter/
+Qwen/opencode-Tool-Calling), die zweimal in Folge unglücklich ausging,
+statt sich wie sonst von selbst zu erholen. Damit bleibt offen, ob ein
+dritter Versuch (identisch oder mit `-c`/`--continue`) einfach
+funktioniert hätte — nicht getestet, auf Nutzerentscheid als
+eigenständiger Reliability-Befund stehen gelassen, nicht weiter
+verfolgt.
 
 ## Konsequenz
 
@@ -110,12 +143,17 @@ gelassen.
   „Weiterhin offen") — betraf vermutlich *alle* bisherigen Qwen-Läufe
   dieses Projekts (Sessions 5, 6, 8), nicht nur diesen. Nicht
   rückwirkend geprüft, wie stark das deren Ergebnisse beeinflusst hat.
-- **Neuer, ungelöster Befund:** selbst mit funktionierendem Feedback-Loop
-  kam Qwen in zwei von zwei Versuchen nicht bis zum Fix — beide Male aus
-  Gründen außerhalb des Harness (Tool-Calling-Abbruch bzw. Session-Ende
-  nach einer einzelnen korrekten Ablehnung). Für die Ablationsstudie
-  relevant: die Autonomierate für dieses Objekt ist bisher 0/2 *trotz*
-  funktionierendem Setup B, nicht wegen eines Harness-Defekts.
+- **Reliability-Befund, revidiert nach Cross-Session-Check:** selbst mit
+  funktionierendem Feedback-Loop kam Qwen in zwei von zwei Versuchen
+  nicht bis zum Fix — aber das `"unknown"`-Tool-Symptom aus Runde 1 ist
+  nachweislich kein Session-9-Neufund, sondern trat schon in Session 6
+  auf (`Bestand-Migration`, `Bestand-Review-Fix`) und wurde dort beide
+  Male folgenlos weggesteckt. Die 0/2-Quote für dieses Objekt spiegelt
+  also wahrscheinlich gewöhnliche Infra-Flakiness, die zweimal in Folge
+  nicht auto-geheilt hat, **nicht** eine objektspezifische Grenze von
+  Qwens Autonomie. Für die Ablationsstudie: als Reliability-Metrik
+  (Recovery-Rate nach Tool-Fehler) sauber, nicht als Autonomie-Fund für
+  diesen Bug fehlinterpretieren.
 
 ## Related
 `docs/datenlage.md` §4 · `CLAUDE.md` „Weiterhin offen" ·
