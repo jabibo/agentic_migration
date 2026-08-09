@@ -24,5 +24,7 @@ SELECT
   CASE WHEN MOD(FLOOR("tt"."pd_beh_key" / 1024), 2) <> 0 THEN 1 ELSE 0 END AS "pd_beh11",
   CASE WHEN MOD(FLOOR("tt"."pd_beh_key" / 2048), 2) <> 0 THEN 1 ELSE 0 END AS "pd_beh12",
   "tt"."pd_rks_id",
-  "tt"."pd_tae_durch"
+  CASE WHEN "tt"."pd_tae_durch" IS NULL OR "dim"."tkd_id" IS NULL THEN 9999 ELSE "tt"."pd_tae_durch" END AS "pd_tae_durch"
 FROM {{ ref('tt_pd_knz_709') }} AS "tt"
+LEFT JOIN {{ source('con_pd_knz', 'vd_pd_taetigkeit_durchgefuehrt') }} AS "dim"
+  ON "tt"."pd_tae_durch" = "dim"."tkd_id"
