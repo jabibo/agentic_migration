@@ -37,5 +37,23 @@ das Makro kontrolliert ab (`raise_compiler_error`) statt einen Wert zu
 raten — dann Parameter aus der Quelldatei ergänzen (Zeilen 90–97 dort),
 nicht selbst schätzen.
 
+## `MON_ID` in der Ausgabe — Verarbeitungsmonat, nicht `pd_abschl_dat`
+[laufzeit-verifiziert, `tf_pd_knz_705`, `docs/session8-architektur-review.md`]:
+das Original-T-SQL berechnet `MON_ID` aus `pd_abschl_dat`
+(`CAST(LEFT(CONVERT(VARCHAR(8), fc.pd_abschl_dat, 112), 6) AS INT)`) —
+bei einem Ein-Monats-Fenster meist unsichtbar (Abschlussdatum liegt
+ohnehin im aktuellen Monat), bei einem **Mehrmonats**-Fenster (s. o.)
+weicht das von der Referenz ab. Referenz erwartet `MON_ID` = aktueller
+Verarbeitungsmonat für **alle** Zeilen, unabhängig vom tatsächlichen
+`pd_abschl_dat`. Fix: `{{ var('verarbeitungsmonat') }} AS MON_ID` statt
+aus `pd_abschl_dat` ableiten.
+
+**Betrifft potenziell 6 weitere Objekte** mit identischem CONVERT-Muster
+für `[mon_id]`: 701, 702, 703, 706, 708, 709 (`rg`-bestätigt). Nicht
+automatisch für alle übernehmen — erst gegen G3 prüfen, das Muster kann
+je Objekt anders wirken (711 nutzt z. B. `pd_zeit_von` statt
+`pd_abschl_dat`, andere Spalte).
+
 ## Related
-`skills/transpile/exasol-dialect-gotchas.md` · `docs/session7-compare.md`
+`skills/transpile/exasol-dialect-gotchas.md` · `docs/session7-compare.md` ·
+`docs/session8-architektur-review.md`

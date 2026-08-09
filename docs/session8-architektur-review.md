@@ -71,9 +71,26 @@ ignorierbar, obwohl sie wie Boilerplate aussehen — echte Arbeit:
 `up_ueb_object_CreateView` (baut die „_k"-Kappungsviews, kein Logging),
 `usp_dim_create_tv_olap_views`, `up_ueb_kalender_BerichtsMonatViews`.
 
-## Offen — nächster Schritt
+## Nachtrag: Qwen-Folgerunde — erstes Objekt mit G0–G3 komplett grün
 
-`tf_pd_knz_705.sql` (Qwens Klasse-B-Objekt) nutzt noch die alte, falsche
-Substitution (`var('verarbeitungsmonat')` für beide Grenzen) — das war
-Folge meiner damals falschen Skill-Anleitung, nicht Qwens eigener Fehler.
-Braucht eine Qwen-Folgerunde mit der korrigierten Skill-Datei.
+56 Schritte, $0,33, keine direkte SQL-DDL/DML. Qwen hat nicht nur die
+Berichtszeitraum-Substitution korrigiert, sondern per Zeilen-für-Zeile-
+Vergleich (`live.merge(ref, on='PD_AUFTR_ID')`) zwei weitere echte
+Abweichungen selbst gefunden:
+
+1. **`pd_auftr_id` fehlte** — im Original-T-SQL-SELECT nicht enthalten,
+   die Referenz erwartet die Spalte trotzdem. Aus `tf_pd_fc` ergänzt.
+2. **`MON_ID` wich ab**: das Original-T-SQL berechnet `MON_ID` aus
+   `pd_abschl_dat` — bei einem Mehrmonats-Fenster (s. o.) weicht das von
+   der Referenz ab, die `MON_ID` = Verarbeitungsmonat für alle Zeilen
+   erwartet, unabhängig vom tatsächlichen Abschlussdatum. Betrifft
+   vermutlich 6 weitere Objekte mit demselben CONVERT-Muster (701, 702,
+   703, 706, 708, 709) — dokumentiert in
+   `skills/transpile/kennzahl-berichtszeitraum.md`, nicht automatisch
+   übernommen (erst gegen G3 prüfen, wenn die Objekte migriert werden).
+
+**Vollständig unabhängig verifiziert** (nicht Qwens `make compare`-Output
+geglaubt): `git diff` gegen alle geschützten Pfade leer, frischer
+`make gate` + `make compare` selbst ausgeführt →
+**G0 12/12, G1 12/12, G2+G3 exakt (20 Zeilen, 7 Spalten), G5 stabil.**
+Erstes Objekt im Projekt, das G0 bis G3 besteht, nicht nur G0/G1.
