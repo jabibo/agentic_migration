@@ -72,20 +72,37 @@ nicht das Modell "gibt auf".
   Mechanismus: `python3 ...` fällt auf `ask`, `ask` beendet den Loop
   sofort, bevor eine Korrektur überhaupt möglich wäre.
 
-## Naheliegender, risikoarmer Test (nicht ausgeführt, zur Entscheidung)
+## Fix getestet und bestätigt (Commit `cd4f015`)
 
-Da `ask` im Headless-Betrieb ohnehin **faktisch immer** zu Ablehnung
-führt (nichts kann es beantworten), ändert ein Wechsel von
-`"*": "ask"` zu `"*": "deny"` in `opencode.jsonc`s `bash`-Regel das
-**Ergebnis** einzelner Tool-Aufrufe nicht — abgelehnt wird so oder so.
-Der einzige Unterschied, den die Daten hier nahelegen: eine explizite
-`deny`-Ablehnung scheint die Session überleben zu lassen (n=1, aber mit
-64 überlebten Ereignissen ein deutliches Signal), während `ask` sie
-zuverlässig beendet. Das wäre ein **sehr kleiner, risikoarmer Eingriff**
-(eine Zeile in `opencode.jsonc`) mit potenziell großer Wirkung auf
-genau die Fragen aus `docs/session10-blocked-reporting.md` und
-`docs/session10-continuity-test.md` — aber noch nicht getestet, bewusst
-zur Entscheidung vorgelegt statt selbst umgesetzt.
+Auf Nutzeranfrage umgesetzt: `opencode.jsonc`s `bash`-Catch-all von
+`"*": "ask"` auf `"*": "deny"`. Die spezifischen `deny`-Regeln für
+Umleitungsschutz (`*>*tools/*` etc.) sind unverändert und unabhängig
+vom Catch-all-Wert wirksam (laufzeit-reverifiziert: Redirect-Versuch
+auf `tools/` weiterhin blockiert).
+
+**Probe 1** (`git status`, nicht in der Allowlist): zum ersten Mal in
+dieser gesamten Session überlebt eine Session eine Ablehnung —
+`step_finish` → **`step_start`** (ein neuer Modell-Turn, in 0 von 30
+vorherigen Fällen beobachtet) → Modell erkennt explizit „`git status`
+ist gesperrt. Versuche stattdessen:" → fällt auf `make gate` zurück →
+meldet das Ergebnis sauber.
+
+**Probe 2** (echter Retry auf KNZ 709s offenen G3-Fehler, Runde 13):
+**30 Tool-Aufrufe, 10 überlebte Ablehnungen** in einer einzigen Runde —
+davon mehrere echte `bash`-„deny"-Treffer, nicht nur die bekannten,
+ohnehin überlebbaren `"unknown"`-Tool-Glitches. Session führte `make
+gate` **und** `make compare` erfolgreich aus, durchsuchte Quellen und
+eigene Macros ausführlich. Kein Fix gelandet (reine Recherche-Runde,
+kein `edit`-Aufruf) — aber das ist jetzt eine Frage von Qwens
+Konvergenz-Fähigkeit, nicht mehr vom Harness verhindert, bevor sie
+überhaupt gestellt werden konnte.
+
+**Fazit:** Bestätigt der Vergleich aus `n=1` zuvor jetzt mit einer
+echten, produktiven Runde. Die Diagnose war korrekt — `ask` im
+Headless-Betrieb war der eigentliche Blocker hinter „stirbt nach
+erster Ablehnung", nicht Qwens Verhalten. Der Fix ändert nichts an dem,
+was abgelehnt wird (dieselben Regeln, dieselbe Sicherheitsgrenze),
+nur daran, dass die Session danach weiterläuft.
 
 ## Related
 `docs/session9-multifile-loading.md` · `docs/session10-batch-run.md` ·
