@@ -92,6 +92,18 @@ KNZ 709 bekommt ausschließlich den rohen G3-Fehlertext, keine Zeilenzahl,
 keine Ursachenerklärung — dieser Absatz bleibt Bauherr-Wissen, nicht
 Prompt-Inhalt.
 
+**Dritter Nachtrag — G3 nie erreicht.** Fünfte Runde mit demselben
+rohen `&`-Fehlertext gestartet: wieder keine Änderung, dritte Runde in
+Folge ohne Fortschritt auf exakt diesem G1-Fehler. Diesmal blockierte
+kein neuer Bash-Zweig den Fortschritt inhaltlich (nur ein `rg`-Aufruf
+am Ende abgelehnt, nicht in der Allowlist — dieselbe „jede Runde eine
+neue Ausnahme"-Symptomatik wie in Session 9, bewusst nicht nachgepflegt)
+— die Session blieb einfach explorativ ohne zu einem `edit` zu kommen.
+Auf `AGENTS.md`s eigener 3-Iterationen-Schwelle hier gestoppt, kein
+sechster Versuch. G3 (und damit die `+`-vs-`\|`-Frage) bleibt für
+KNZ 709 unerreicht — der Befund aus dem zweiten Nachtrag ist weiterhin
+unverifiziert durch Qwen selbst, nur durch meine eigene Probe bestätigt.
+
 ## Batch-Ergebnisse (701, 702, 708, 709)
 
 Details je Objekt in den jeweiligen Commit-Botschaften auf
@@ -103,7 +115,7 @@ Details je Objekt in den jeweiligen Commit-Botschaften auf
 | 701 | grün (Runde 2) | offen (Hash, Zeilenzahl exakt) | 3 | Korrekte NOT-IN-Dimensionsprüfung + proaktiv korrektes MON_ID im 1. Versuch; korrigierte selbst einen von Exasol nicht unterstützten korrelierten NOT-IN-in-CASE-Ausdruck (LEFT JOIN + IS NULL) |
 | 702 | grün (Runde 3) | nicht erreicht (G1 blieb an Case-Folding hängen) | 4 | Eigener Fehler brach den kompletten Compile (ungültiger `config(depends_on=[...])`-Block) — selbst gefunden und behoben; Dateiname-Verwechslung (`knk` statt `knz`) kostete eine Runde |
 | 708 | grün (Runde 1, First-Pass) | nicht erreicht (Quotier-Bug 2x nicht selbst behoben) | 4 | Ausgezeichnete Eigendiagnose per `exapump_select.sh` (fand die fehlende Dimensionsprüfung selbst), aber ein selbst eingeführter, trivialer Quotier-Fehler blieb 2 Runden lang unkorrigiert |
-| 709 | offen (`&`-Operator, 2 Runden ohne Fortschritt) | nicht erreicht | 4 (nach Neustart wg. Methodik-Verstoß) | Baute nach Korrektur die Bitmaske-Logik selbst korrekt (12-Code-Mapping geprüft), reale Abweichung nur in der Kombinationslogik (`+` statt `\|`); blieb dann am selben, schon vor dem Neustart bekannten `&`-Bitwise-Fehler hängen |
+| 709 | offen (`&`-Operator, 3 Runden ohne Fortschritt) | nie erreicht | 5 (nach Neustart wg. Methodik-Verstoß) | Baute nach Korrektur die Bitmaske-Logik selbst korrekt (12-Code-Mapping geprüft), reale Abweichung nur in der Kombinationslogik (`+` statt `\|`, empirisch bestätigt, nicht an Qwen weitergegeben); blieb dann am `&`-Bitwise-Fehler hängen, `AGENTS.md`-Schwelle erreicht |
 
 ## Fazit (Batch abgeschlossen: 701, 702, 708, 709)
 
