@@ -16,4 +16,4 @@ SELECT
     "pd_kurzbez",
     CAST("bi_timestamp" AS DATE) AS "bi_load_date",
     "bi_timestamp" AS "bi_load_filename"
-FROM {{ schema_for('data') }}.bi_delta_azt
+FROM {{ delta_union_dedup('azt', '"bi_load_date"') }} AS d

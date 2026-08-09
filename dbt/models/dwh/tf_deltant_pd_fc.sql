@@ -43,7 +43,7 @@ SELECT
     "pd_trg_schl",
     CAST("bi_timestamp" AS DATE) AS "bi_load_date",
     "bi_timestamp" AS "bi_load_filename"
-FROM {{ schema_for('data') }}.bi_delta_fc
+FROM {{ delta_union_dedup('fc', '"pd_auftr_id"') }} AS d
 WHERE "pd_auftr_id" IS NOT NULL
   AND "pd_fehl_typ" = 0
   AND "pd_fehl_typ" IS NOT NULL

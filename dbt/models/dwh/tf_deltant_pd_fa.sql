@@ -21,4 +21,4 @@ SELECT
     0 AS "pd_anz_in_bear",
     CAST("bi_timestamp" AS DATE) AS "bi_load_date",
     "bi_timestamp" AS "bi_load_filename"
-FROM {{ schema_for('data') }}.bi_delta_fa
+FROM {{ delta_union_dedup('fa', '"bi_load_date"') }} AS d
