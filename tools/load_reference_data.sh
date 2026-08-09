@@ -107,7 +107,22 @@ load_knz_views() {
         SELECT * FROM ${dim_schema}.vd_as_bps_region" >/dev/null
     exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${calc_schema}.td_ueb_kalender_Tag AS
         SELECT * FROM ${dim_schema}.td_ueb_kalender_tag" >/dev/null
-    echo "    3 Views erstellt (vd_pd_dienststelle, vd_as_bps_Region, td_ueb_kalender_Tag)."
+
+    # KNZ-706-Handoff (Session 9): dieselbe Luecke, vier weitere Dimensionen
+    # -- reale Daten liegen unter vd_as_* in DIM, con_pd_knz erwartet andere
+    # Namen. Wie oben: voller Pass-Through (SELECT *), keine Spaltenauswahl,
+    # keine Fachentscheidung -- nur bei vd_pd_dienststelle war die Spalten-
+    # einschraenkung ein bereits dokumentierter, spezifischer Fund.
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_pd_taetigkeit_beauftragt AS
+        SELECT * FROM ${dim_schema}.vd_as_pd_taetigkeitbeauftragt" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_bps_stelle AS
+        SELECT * FROM ${dim_schema}.vd_as_bps_stelle" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_pd_abschlussart AS
+        SELECT * FROM ${dim_schema}.vd_as_pd_abschlussart" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_bps_Abschlussgrund AS
+        SELECT * FROM ${dim_schema}.vd_as_bps_abschlussgrund" >/dev/null
+    echo "    7 Views erstellt (vd_pd_dienststelle, vd_as_bps_Region, td_ueb_kalender_Tag,"
+    echo "    vd_pd_taetigkeit_beauftragt, vd_bps_stelle, vd_pd_abschlussart, vd_bps_Abschlussgrund)."
 }
 
 case "$MODE" in

@@ -231,6 +231,36 @@ def main() -> int:
     sources_by_db = defaultdict(set)
     for short_db, tbl in all_external:
         sources_by_db[short_db].add(tbl)
+
+    # sources.yml deckt nicht nur Klasse-A-Objekte ab: Klasse-B/C-Skripte
+    # (Qwens Aufgabe) referenzieren haeufig externe Dimensions-/Referenz-
+    # Tabellen (z.B. KNZ 706 -> con_pd_knz.vd_pd_taetigkeit_beauftragt),
+    # die render_select_body() nie sieht, weil es nur auf Klasse-A-SELECTs
+    # laeuft. Ohne diesen Zweig ueberschreibt jeder `make gate`-Lauf Qwens
+    # manuelle sources.yml-Ergaenzungen (Klasse-A-Regenerierung) -- das
+    # Objekt scheitert dann nicht am Modell, sondern an der eigenen
+    # Infrastruktur [laufzeit-verifiziert, docs/session9-multifile-loading.md
+    # bzw. das KNZ-706-Handoff]. Fix bleibt deterministisch (kein Objektname
+    # im Code): reports/lineage.jsonl deckt bereits ALLE Objekte/Klassen ab
+    # (extract.py laeuft ueber den ganzen source_dir) -- "extern" heisst hier
+    # schlicht "wird irgendwo gelesen, aber nirgends von irgendeinem Objekt
+    # geschrieben", ueber Statement-Arten beschraenkt, die echte Tabellen-
+    # referenzen sind (kein EXEC/USE/DECLARE/Block -- das waeren Prozedur-
+    # aufrufe bzw. Kontrollfluss, keine Tabellen).
+    DATA_KINDS = {"SelectInto", "Select", "Update", "Insert", "Union"}
+    all_targets_ever = {row["target"] for row in lineage if row.get("target")}
+    for row in lineage:
+        if row["kind"] not in DATA_KINDS:
+            continue
+        for src in row.get("sources") or []:
+            if not src or src in all_targets_ever:
+                continue
+            db, tbl = split_db_table(src)
+            role, short_db = role_and_db(db)
+            if not short_db:
+                continue  # kein bekanntes Schema-Praefix (z.B. sys.databases) -- kein echtes Objekt, still ignoriert
+            sources_by_db[short_db].add(tbl)
+
     lines = ["version: 2", "", "sources:"]
     for short_db in sorted(sources_by_db):
         lines.append(f"  - name: {short_db}")
@@ -240,9 +270,10 @@ def main() -> int:
             lines.append(f"      - name: {tbl}")
     (out_dir / "sources.yml").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    total_sources = sum(len(v) for v in sources_by_db.values())
     for p in written:
         print(f"geschrieben: {p}")
-    print(f"geschrieben: {out_dir / 'sources.yml'} ({len(all_external)} externe Quelltabellen)")
+    print(f"geschrieben: {out_dir / 'sources.yml'} ({total_sources} externe Quelltabellen)")
     return 0
 
 
