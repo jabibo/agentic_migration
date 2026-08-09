@@ -104,6 +104,37 @@ sechster Versuch. G3 (und damit die `+`-vs-`\|`-Frage) bleibt für
 KNZ 709 unerreicht — der Befund aus dem zweiten Nachtrag ist weiterhin
 unverifiziert durch Qwen selbst, nur durch meine eigene Probe bestätigt.
 
+**Vierter Nachtrag — G1 doch noch gelöst, G3 erreicht, dann Nutzerentscheid
+zu stoppen.** Auf Nutzeranfrage ein sechster Versuch mit demselben rohen
+`&`-Fehlertext: diesmal ein echter, funktionierender Fix — `col & V <> 0`
+durch `MOD(FLOOR(col / V), 2) <> 0` ersetzt (klassische Bit-Extraktion
+ohne native Bitwise-Operatoren). G0 14/14, G1 14/14. Unaufgefordert auch
+eine neue `memory/rules/exasol_bitwise.md` geschrieben (AGENTS.md-
+Vorgabe, korrekt befolgt). Vor dem Committen per Transkript-Check
+verifiziert, dass die Änderung tatsächlich aus Qwens `edit`-Aufruf
+stammt, nicht versehentlich von mir.
+
+G3 damit zum ersten Mal für dieses Objekt erreichbar — zeitgleich kam
+die neue Attribut-Ebene aus `tools/compare_data.py` (s. Nachtrag oben)
+zum ersten Mal an einem echten, neuen Fall zum Einsatz: `abweichende_
+spalten=mon_id,pd_beh12,pd_beh2,pd_beh6,pd_beh8,pd_beh_key,
+pd_schul_abschl,pd_tae_durch` — `pd_beh_key` ist tatsächlich darunter,
+deckt sich mit dem eigenen (nicht weitergegebenen) `+`-vs-`\|`-Fund.
+
+Zwei weitere Runden, beide nur mit dem rohen G2/G3-Text (kein Hinweis
+auf `pd_beh_key`/Ursache): Runde 7 und Runde 8 recherchierten beide
+gründlich und gezielt (mehrere `exapump_select.sh`-Abfragen genau auf
+die gemeldeten Spalten, in Runde 8 sogar Lektüre von `tools/
+compare_data.py`/`compare.sh` selbst, um die Vergleichsmethode zu
+verstehen) — keine der beiden kam zu einem `edit`-Aufruf oder einer
+Schlussfolgerung. Zwei Runden in Folge ohne jeden Fortschritt trotz
+funktionierender Diagnose-Werkzeuge. Auf Nutzereinschätzung („i dont
+think another round will fix it") hier gestoppt, kein neunter Versuch.
+
+**Endstand KNZ 709:** G0/G1 grün, G2 (eine zusätzliche Spalte `anzahl`)
+und G3 (8 von 22 Spalten abweichend, inkl. `pd_beh_key`) offen,
+ungemerged auf `qwen/knz-709`.
+
 ## Batch-Ergebnisse (701, 702, 708, 709)
 
 Details je Objekt in den jeweiligen Commit-Botschaften auf
@@ -115,7 +146,7 @@ Details je Objekt in den jeweiligen Commit-Botschaften auf
 | 701 | grün (Runde 2) | offen (Hash, Zeilenzahl exakt) | 3 | Korrekte NOT-IN-Dimensionsprüfung + proaktiv korrektes MON_ID im 1. Versuch; korrigierte selbst einen von Exasol nicht unterstützten korrelierten NOT-IN-in-CASE-Ausdruck (LEFT JOIN + IS NULL) |
 | 702 | grün (Runde 3) | nicht erreicht (G1 blieb an Case-Folding hängen) | 4 | Eigener Fehler brach den kompletten Compile (ungültiger `config(depends_on=[...])`-Block) — selbst gefunden und behoben; Dateiname-Verwechslung (`knk` statt `knz`) kostete eine Runde |
 | 708 | grün (Runde 1, First-Pass) | nicht erreicht (Quotier-Bug 2x nicht selbst behoben) | 4 | Ausgezeichnete Eigendiagnose per `exapump_select.sh` (fand die fehlende Dimensionsprüfung selbst), aber ein selbst eingeführter, trivialer Quotier-Fehler blieb 2 Runden lang unkorrigiert |
-| 709 | offen (`&`-Operator, 3 Runden ohne Fortschritt) | nie erreicht | 5 (nach Neustart wg. Methodik-Verstoß) | Baute nach Korrektur die Bitmaske-Logik selbst korrekt (12-Code-Mapping geprüft), reale Abweichung nur in der Kombinationslogik (`+` statt `\|`, empirisch bestätigt, nicht an Qwen weitergegeben); blieb dann am `&`-Bitwise-Fehler hängen, `AGENTS.md`-Schwelle erreicht |
+| 709 | grün (Runde 6, `MOD(FLOOR(x/N),2)` statt `&`) | offen (G2: 1 Spalte, G3: 8/22 Spalten inkl. `pd_beh_key`, 2 Runden ohne Fortschritt) | 8 (nach Neustart wg. Methodik-Verstoß) | Baute nach Korrektur die Bitmaske-Logik selbst korrekt (12-Code-Mapping geprüft); löste den `&`-Fehler letztlich selbst (klassische Bit-Extraktion); schrieb unaufgefordert eine eigene `memory/rules/exasol_bitwise.md`; erreichte als einziges Batch-Objekt G3, aber 2 Runden ohne jeden Fortschritt trotz gezielter `exapump_select.sh`-Recherche, auf Nutzerentscheid gestoppt |
 
 ## Fazit (Batch abgeschlossen: 701, 702, 708, 709)
 
@@ -125,6 +156,18 @@ substanziellem, überprüfbarem Fortschritt** — kein Objekt blieb bei
 Ledger-Eintrag von Qwen selbst in dieser Serie (kein Objekt hat sich
 selbst als `blocked` erkannt/gemeldet — alle vier Branches bleiben
 offen, aber aktiv weiterführbar).
+
+**Nachtrag nach Abschluss von KNZ 709** (8 Runden insgesamt, s.o.): mit
+genug Iterationen wurde ein reiner Struktur-/Syntax-Fehler (`&`-Operator)
+letztlich doch gelöst — Beharrlichkeit zahlt sich für diese Fehlerklasse
+also aus, auch nach 3 Runden ohne Fortschritt. Die Konvergenz-Schwäche
+bleibt aber bei semantischen/inhaltlichen Fehlern (G3) bestehen: KNZ 709
+erreichte als einziges Objekt G3 überhaupt, blieb dort aber trotz
+funktionierender Attribut-Diagnose 2 Runden ohne Fortschritt stehen.
+Das stützt die obige Einordnung eher, als sie zu widerlegen: das
+Konvergenzproblem scheint bei syntaktischen Fehlern eher durch reines
+Wiederholen lösbar, bei inhaltlichen (Bedeutung von Spalten, Kombinations-
+logik) nicht.
 
 - **Kein Verständnisproblem, sondern ein Konvergenzproblem.** Über alle
   vier Objekte hinweg: Diagnosen sind regelmäßig korrekt und werden bei
