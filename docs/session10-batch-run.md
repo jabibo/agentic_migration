@@ -48,6 +48,20 @@ konnte.
 in `dbt/models/` umsetzen — als eigenes Makro, als CTE, oder inline,
 das ist Qwens Entscheidung, nicht meine.
 
+**Ergebnis der korrigierten Runde** (Commit `4816fc5`): Qwen hat
+`dbt/macros/pd_helpers.sql` selbst geschrieben (`dbt/**` ist für Qwen
+schreibbar). Einzelwert-Mapping korrekt gegen die Zweistufen-Logik der
+Quelle geprüft (12 Codes → Bit, NULL → 0, unbekannter Code → 4096).
+Ein echter, nicht selbst gefundener Unterschied zum Original bleibt:
+die 4 Felder werden per `+` (Addition) statt per bitweisem `|` (OR)
+kombiniert — bei doppelten Codes über die vier `pd_beh_*`-Felder hinweg
+semantisch abweichend (Original ist idempotent gegen Duplikate,
+Addition zählt doppelt). Nicht selbst zurückgespielt (kein Diagnose-
+Vorgriff) — würde durch G3 auffallen, falls der Testkorpus einen
+solchen Fall enthält. `tf_pd_knz_709.sql` selbst bleibt bei ihrem
+bereits bekannten `&`-Bitwise-Operator-Fehler stehen (2 Runden ohne
+Fortschritt) — Exasol kennt nur `BIT_AND()`, kein `&`-Infix.
+
 ## Batch-Ergebnisse (701, 702, 708, 709)
 
 Details je Objekt in den jeweiligen Commit-Botschaften auf
@@ -59,23 +73,45 @@ Details je Objekt in den jeweiligen Commit-Botschaften auf
 | 701 | grün (Runde 2) | offen (Hash, Zeilenzahl exakt) | 3 | Korrekte NOT-IN-Dimensionsprüfung + proaktiv korrektes MON_ID im 1. Versuch; korrigierte selbst einen von Exasol nicht unterstützten korrelierten NOT-IN-in-CASE-Ausdruck (LEFT JOIN + IS NULL) |
 | 702 | grün (Runde 3) | nicht erreicht (G1 blieb an Case-Folding hängen) | 4 | Eigener Fehler brach den kompletten Compile (ungültiger `config(depends_on=[...])`-Block) — selbst gefunden und behoben; Dateiname-Verwechslung (`knk` statt `knz`) kostete eine Runde |
 | 708 | grün (Runde 1, First-Pass) | nicht erreicht (Quotier-Bug 2x nicht selbst behoben) | 4 | Ausgezeichnete Eigendiagnose per `exapump_select.sh` (fand die fehlende Dimensionsprüfung selbst), aber ein selbst eingeführter, trivialer Quotier-Fehler blieb 2 Runden lang unkorrigiert |
-| 709 | offen (s. Methodik-Verstoß oben) | — | 1 (dann Neustart faellig) | Nutzte korrekt den dokumentierten (aber nie gebauten) Makronamen — kein Qwen-Fehler; echte Aufgabe (Bitmaske selbst bauen) steht noch aus |
+| 709 | offen (`&`-Operator, 2 Runden ohne Fortschritt) | nicht erreicht | 4 (nach Neustart wg. Methodik-Verstoß) | Baute nach Korrektur die Bitmaske-Logik selbst korrekt (12-Code-Mapping geprüft), reale Abweichung nur in der Kombinationslogik (`+` statt `\|`); blieb dann am selben, schon vor dem Neustart bekannten `&`-Bitwise-Fehler hängen |
 
-## Zwischenfazit (vorläufig, Batch noch nicht abgeschlossen)
+## Fazit (Batch abgeschlossen: 701, 702, 708, 709)
 
-- **Kein Verständnisproblem, sondern ein Konvergenzproblem** (bestätigt
-  über 3 von 4 Objekten hinweg, s. auch Session 9): Diagnosen sind
-  regelmäßig korrekt und werden per `exapump_select.sh` selbst verifiziert
-  (708 ist das Paradebeispiel), aber die letzte Meile — eine konkrete,
-  syntaktisch saubere Korrektur landen — gelingt nicht zuverlässig.
-- **Selbstständige Anwendung von Skills variiert:** 701 und 708 wandten
-  das dokumentierte MON_ID-Fix proaktiv an, ohne Aufforderung — ein
-  echtes Setup-C-Signal (Regelgedächtnis wirkt). Kein Objekt bisher mit
-  demselben Fehler zweimal — noch kein Gegenbeispiel für „wird die Regel
-  ignoriert", aber auch noch keine große Stichprobe.
+Ergebnis: **0/4 Objekte vollständig grün (G0-G3)**, aber **4/4 mit
+substanziellem, überprüfbarem Fortschritt** — kein Objekt blieb bei
+„nichts passiert" stehen (anders als Teile von Session 9). Kein
+Ledger-Eintrag von Qwen selbst in dieser Serie (kein Objekt hat sich
+selbst als `blocked` erkannt/gemeldet — alle vier Branches bleiben
+offen, aber aktiv weiterführbar).
+
+- **Kein Verständnisproblem, sondern ein Konvergenzproblem.** Über alle
+  vier Objekte hinweg: Diagnosen sind regelmäßig korrekt und werden bei
+  708 sogar per `exapump_select.sh` selbst verifiziert (mehrere gezielte
+  SELECTs, korrekte Schlussfolgerung in eigenen Worten) — aber die
+  letzte Meile, eine konkrete, syntaktisch sowie semantisch vollständig
+  saubere Korrektur landen, gelingt nicht zuverlässig. 702 und 708
+  blieben je zweimal in Folge an trivialen, selbst eingeführten
+  Quotier-/Struktur-Fehlern hängen; 709 zweimal am selben `&`-Operator.
+- **Selbstständige Anwendung von Skills/Regelgedächtnis funktioniert,
+  variiert aber:** 701 und 708 wandten das dokumentierte MON_ID-Fix
+  proaktiv an, ohne Aufforderung — ein echtes Setup-C-Signal. Kein
+  Objekt wiederholte denselben Fehler über mehrere Objekte hinweg
+  (kein Gegenbeispiel für „Regel wird ignoriert" gefunden) — aber auch
+  keine große genug Stichprobe für eine belastbare Quote.
 - **Wiederkehrende, aber nicht blockierende Kleinfehler:** falscher
-  Testmonat (702, keine Seiteneffekte), Dateiname-Verwechslungen
-  (`knk` statt `knz`, mehrfach beobachtet).
+  Testmonat (702, keine Seiteneffekte, selbst nicht bemerkt),
+  Dateiname-Verwechslungen (`knk` statt `knz`, mehrfach über
+  verschiedene Objekte hinweg beobachtet — evtl. ein generisches
+  Tokenisierungs-/Verwechslungsmuster dieses Modells, nicht objekt-
+  spezifisch).
+- **Eigener Methodik-Fund wichtiger als jeder Einzelbefund:** die
+  KNZ-709-Verstoß-Episode zeigt, dass die Versuchung, "kurz selbst zu
+  helfen", real ist und sich als scheinbar legitime Infrastruktur-
+  Entscheidung tarnen kann — nur durch die Nutzerfrage aufgefallen,
+  nicht durch Selbstprüfung. Für die Ablationsstudie bedeutet das:
+  jeder Bauherr-Commit, der wie Infrastruktur aussieht, verdient
+  nachträgliche Prüfung gegen `reports/triage.md`s Klassifikation, nicht
+  nur die eigene Einschätzung im Moment.
 
 ## Related
 `docs/session9-multifile-loading.md` · `CLAUDE.md` „Kernregel: Bauherr
