@@ -1,4 +1,4 @@
-{{ config(schema=schema_for('calc')) }}
+{{ config(schema=schema_for('dwh')) }}
 
 -- Klasse C: aus source_references/pd/pd_skripte/PD LOAD.Bestandsuebernahme.sql
 -- Schritt 4 (Kappung): View tf_deltant_pd_azt_k mit max. 5 Jahren Kappung
