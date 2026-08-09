@@ -76,25 +76,31 @@ load_delta() {
     fi
 }
 
-# con_pd_knz-Delivery-Views, die als externe Quellen deklariert sind
-# (dbt/models/sources.yml) aber im Quellsystem nicht als Tabelle/View
-# vorliegen -- POC-Ersatz per Rohdimension + Pass-Through-View. Neue
-# Views hier ergaenzen, sobald weitere Luecken bekannt sind (z.B.
-# vd_as_bps_Region, td_ueb_kalender_Tag -- siehe docs/session6-bestand-run.md).
+# Views, die als externe Quellen deklariert sind (dbt/models/sources.yml)
+# aber im Quellsystem nicht direkt als Tabelle/View vorliegen -- POC-
+# Ersatz per Rohdimension (bereits via load_dimensions in $dim_schema
+# geladen) + Pass-Through-View "dieselbe Abbildung", keine Transformation,
+# keine Fachentscheidung. Zielschema variiert je Objekt (aus dem
+# Quellskript abgeleitet, docs/systemkontext.md B.1/B.4 -- nicht geraten):
+# vd_pd_dienststelle/vd_as_bps_Region -> KNZ (per <DBNAME_PD_KNZ>-
+# Platzhalter im Quellskript), td_ueb_kalender_Tag -> CALC (ambient-
+# resolved aus USE con_pd_calc, siehe docs/session6-bestand-run.md).
 load_knz_views() {
-    local dim_schema knz_schema
+    local dim_schema knz_schema calc_schema
     dim_schema="$(schema_for dim "$MONAT")"
     knz_schema="$(schema_for knz "$MONAT")"
-    echo "==> KNZ-Delivery-Views -> $knz_schema"
+    calc_schema="$(schema_for calc "$MONAT")"
+    echo "==> Pass-Through-Views fuer fehlende Quellen"
     exapump sql -p "$PROFILE" "CREATE SCHEMA IF NOT EXISTS $knz_schema" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE SCHEMA IF NOT EXISTS $calc_schema" >/dev/null
 
-    # con_pd_knz.vd_pd_dienststelle (Bruecke ba_schl -> org_id): im
-    # Quellsystem nicht in verwertbarem Format vorhanden (docs/systemkontext.md
-    # B.6). POC-Ersatz: reiner Pass-Through auf die geladene Rohdimension,
-    # "dieselbe Abbildung" -- keine Transformation, keine Fachentscheidung.
     exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_pd_dienststelle AS
         SELECT \"ba_schl\", \"org_id\" FROM ${dim_schema}.vd_as_pd_dienststelle" >/dev/null
-    echo "    1 View erstellt (vd_pd_dienststelle)."
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_as_bps_Region AS
+        SELECT * FROM ${dim_schema}.vd_as_bps_region" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${calc_schema}.td_ueb_kalender_Tag AS
+        SELECT * FROM ${dim_schema}.td_ueb_kalender_tag" >/dev/null
+    echo "    3 Views erstellt (vd_pd_dienststelle, vd_as_bps_Region, td_ueb_kalender_Tag)."
 }
 
 case "$MODE" in
