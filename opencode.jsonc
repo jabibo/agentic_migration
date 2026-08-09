@@ -41,26 +41,55 @@
           "dbt/**": "allow",
           "memory/rules/**": "allow"
         },
-        // Session 9 (docs/session9-multifile-loading.md): "ask" allein
-        // blockierte Qwens eigenen Feedback-Loop vollstaendig im
-        // nicht-interaktiven `opencode run` -- "ask" kann dort nie
-        // beantwortet werden, jeder bash-Aufruf (auch die laut AGENTS.md
-        // ausdruecklich erlaubten make gate/make compare) wurde automatisch
-        // abgelehnt. Deshalb genau diese zwei lesenden Kommandos freigegeben,
-        // alles andere bleibt "ask" (in headless-Laeufen effektiv "deny") --
-        // insbesondere der bekannte Bypass-Weg (z.B. "echo x > tools/y",
-        // s. "Weiterhin offen" in CLAUDE.md) bleibt gesperrt.
-        // Laufzeit-verifiziert (docs/session9-multifile-loading.md): bei
-        // Pipes (z.B. "make gate MONAT=... | tail -10") prueft opencode
-        // offenbar jeden Teilbefehl einzeln -- "make gate MONAT=*" allein
-        // liess den Aufruf trotzdem an "*": "ask" scheitern, weil "tail -10"
-        // nicht erlaubt war. Deshalb zusaetzlich die ueblichen lesenden
-        // Anzeige-Befehle freigegeben (kein neues Risiko: Lesezugriff ist
-        // fuer Qwen ueber das read-Tool ohnehin schon uneingeschraenkt).
+        // Deliberat konsolidierte Policy (Session 10 -- "stabilisiere die
+        // bash-Oberflaeche einmal richtig, statt weiter Einzelfaelle zu
+        // patchen"), ersetzt eine Serie reaktiver Session-9-Patches.
+        // Zwei Saeulen:
+        //   1. Genau das, was AGENTS.md Qwen ausdruecklich erlaubt:
+        //      make gate/make compare, und lesendes Exasol-Debugging
+        //      (nur ueber tools/exapump_select.sh, s. dort -- roher
+        //      "exapump *" bleibt gesperrt, siehe Session-5-Vorfall).
+        //   2. Uebliche rein lesende Anzeige-/Inspektionsbefehle, damit
+        //      Qwen die Ausgabe von (1) tatsaechlich verwenden kann
+        //      (Pipes/Compound-Befehle werden von opencode teilbefehl-
+        //      weise geprueft, s.u.) -- kein neues Risiko, Lesezugriff
+        //      hat Qwen ueber das read-Tool ohnehin schon uneingeschraenkt.
+        // "ask" ist in nicht-interaktivem `opencode run` gleichbedeutend
+        // mit "deny" (kann dort nie beantwortet werden, s. docs/
+        // session9-multifile-loading.md) -- alles ausserhalb dieser Liste
+        // ist also effektiv gesperrt, nicht nur "erschwert".
+        //
+        // KRITISCH, laufzeit-verifiziert (Session 10): jede der obigen
+        // Regeln allein wuerde Ausgabe-Umleitung durchlassen, weil
+        // opencodes Pattern-Matching den Befehlstext nur als String
+        // vergleicht, Shell-Semantik (">" = schreibt in eine Datei) NICHT
+        // versteht -- "echo X > tools/gate.sh" matcht "echo *" genauso wie
+        // "echo X" ohne Umleitung. Damit waere jede einzelne Allow-Regel
+        // ein direkter Bypass der edit-Sperre gewesen (exakt das in
+        // CLAUDE.md als theoretisch offen dokumentierte Risiko -- hier
+        // real reproduziert: echo-Redirect auf eine Testdatei lief
+        // klaglos durch, kein "ask", kein Fehler).
+        //
+        // Erster Fix-Versuch (eine einzige Deny-Regel "*>*" ganz am Ende)
+        // war zu grob: blockierte auch "2>&1" (stderr-nach-stdout-
+        // Umleitung, kein Datei-Schreibzugriff, extrem gebraeuchliches
+        // Idiom -- Qwen nutzt es staendig fuer "make gate ... 2>&1 |
+        // tail"). Laufzeit-verifiziert kaputt: derselbe Testlauf, der
+        // vorher durchlief, brach danach genau an diesem Muster ab.
+        // Stattdessen gezielt nur Umleitungen auf tatsaechlich
+        // geschuetzte Pfade sperren (deckungsgleich mit der edit-Sperre
+        // oben) -- "N>&M"-Idiome wie "2>&1" enthalten keinen dieser
+        // Pfad-Strings und bleiben erlaubt. Nicht adversarial-wasserdicht
+        // (z.B. Quoting-Tricks wie "t''ools/y" wuerden durchrutschen) --
+        // das ist bewusst kein Ziel (s. docs/adr/0001-deterministik-first.md,
+        // dieselbe Abwaegung wie bei der bestehenden edit-Bypass-Luecke):
+        // schuetzt gegen normales Werkzeug-Verhalten, nicht gegen einen
+        // absichtlich evasiven Agenten.
         "bash": {
           "*": "ask",
           "make gate MONAT=*": "allow",
           "make compare MONAT=*": "allow",
+          "tools/exapump_select.sh *": "allow",
           "tail *": "allow",
           "head *": "allow",
           "cat *": "allow",
@@ -68,7 +97,15 @@
           "wc *": "allow",
           "ls *": "allow",
           "find *": "allow",
-          "echo *": "allow"
+          "echo *": "allow",
+          "*>*tools/*": "deny",
+          "*>*source_references/*": "deny",
+          "*>*skills/*": "deny",
+          "*>*docs/*": "deny",
+          "*>*reports/*": "deny",
+          "*>*AGENTS.md*": "deny",
+          "*>*CLAUDE.md*": "deny",
+          "*>*opencode.jsonc*": "deny"
         }
       }
     }
