@@ -6,6 +6,11 @@ ist bereits deterministisch erledigt — fass sie nicht an.**
 ## Harte Regeln
 
 - 1:1-Migration. Keine erfundene Fachlogik, Original-Objektnamen behalten.
+- Schema-Rolle (`schema_for('data'|'dwh'|'calc'|'fact'|'knz'|'dim'|'strg')`)
+  **nicht** aus Ordnernamen bestehender Modelle raten — aus dem `USE <db>`
+  am Skriptanfang und `docs/systemkontext.md` B.1 ableiten (Layer-
+  Bedeutung: DWH = Gesamtbestand inkl. Vormonat, CALC/FACT lesen nur
+  daraus, akkumulieren nicht selbst). B.4 hat das DB→Rolle-Mapping.
 - Du bekommst pro Aufgabe genau: Quell-DDL, direkte Vorgänger-Interfaces,
   gematchte `memory/rules/*.md`, letzte Fehlerzeile. Nichts sonst anfordern.
 - **Nicht anfassen — schreibgeschützt:** `tools/`, `source_references/`,
