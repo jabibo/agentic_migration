@@ -121,24 +121,68 @@ unaided Runden ist wahrscheinlich **nicht** aussagekräftig für Qwens
 Fähigkeit, diesen konkreten Bug zu lösen — plausibler ist eine ganz
 gewöhnliche, vorbestehende Infrastruktur-Unzuverlässigkeit (OpenRouter/
 Qwen/opencode-Tool-Calling), die zweimal in Folge unglücklich ausging,
-statt sich wie sonst von selbst zu erholen. Damit bleibt offen, ob ein
-dritter Versuch (identisch oder mit `-c`/`--continue`) einfach
-funktioniert hätte — nicht getestet, auf Nutzerentscheid als
-eigenständiger Reliability-Befund stehen gelassen, nicht weiter
-verfolgt.
+statt sich wie sonst von selbst zu erholen.
+
+### Runde 3 (dritter unaided Versuch, identischer Prompt)
+
+Auf Nutzeranfrage ein dritter, identischer Versuch (20 Tool-Calls, $0,022)
+— diesmal kommt Qwen tatsächlich bis zum `edit`, zum ersten Mal in dieser
+Objekt-Serie:
+
+1. Bestätigt (wie Runde 2) korrekt, dass `bi_load_date`/`bi_timestamp` für
+   `fa`/`azt` keine echten Spalten sind.
+2. Liest **zusätzlich** `PD LOAD.Bestandsuebernahme.sql` im Detail und
+   findet dort korrekt: im Original-T-SQL werden diese Werte aus dem
+   **Tabellennamen** rekonstruiert (`REPLACE([tabelle], 'BI_DELTA_FA', '')`)
+   — echte, sourcierte Erkenntnis, keine Halluzination.
+3. Editiert `tf_deltant_pd_fa.sql`/`tf_deltant_pd_azt.sql`: baut
+   `bi_timestamp`/`bi_load_date` per `CONCAT(SUBSTR(REPLACE(REPLACE(
+   "bi_load_filename", ...` aus einer Spalte `"bi_load_filename"` — die
+   aber **nicht existiert**. `delta_union_dedup()` gibt nur die realen
+   Rohspalten der unionierten Tabellen zurück (u.a. `bi_timestamp`, s.
+   `exa_all_columns`-Check oben), keine Quelldatei-/Tabellennamen-Spalte
+   pro Zeile. `bi_load_filename` war im ursprünglich fehlerhaften Code
+   nur ein *Output*-Alias (`"bi_timestamp" AS "bi_load_filename"`) —
+   Qwen hat den Output-Alias fälschlich als verfügbare Input-Spalte
+   behandelt. `make gate` (unabhängig nachgeprüft): weiterhin 2 Fehler,
+   jetzt `object "bi_load_filename" not found`.
+4. Direkt nach dem zweiten `edit` derselbe `"unknown"`-Tool-Glitch wie in
+   Runde 1, danach ein abgelehnter zusammengesetzter Bash-Aufruf
+   (`cat ... || echo "not found"` — `echo` nicht in der Allowlist, gleiche
+   Pipe-Aufsplittung wie beim `ls`-Fund). Session endet ohne erneuten
+   `make gate`-Lauf, ohne Commit, ohne Fazit-Text.
+
+**Echter Nebenbefund:** Qwens Ansatz ist mit der aktuellen
+`delta_union_dedup()`-Schnittstelle gar nicht umsetzbar — das Makro
+müsste die Quelltabelle/-datei pro Zeile mit ausgeben, damit eine
+dateiname-basierte Ableitung (wie im Original-T-SQL) überhaupt möglich
+wäre. Bewusst **nicht** in dieser Session nachgerüstet (Nutzerentscheid:
+hier stoppen) — für eine künftige Session vorgemerkt, keine Handkorrektur.
+
+Auf `AGENTS.md`s eigener Schwelle (3 Iterationen ohne Fortschritt auf
+demselben Gate → `blocked`) hier bewusst gestoppt, kein vierter Versuch.
+Fehlerhafte Änderung **nicht committet** (`git checkout --` auf den
+Stand vor Runde 3 zurückgesetzt) — der zuletzt committete, bekannt
+fehlerhafte Stand (`ef7d0ad`, Runde 1) bleibt der Referenzpunkt.
 
 ## Konsequenz
 
-- `tf_deltant_pd_fa.sql`/`tf_deltant_pd_azt.sql` bleiben mit dem Bug
-  (zuletzt Commit `ef7d0ad` auf `qwen/bestand-multifile-adoption`,
-  **ungemerged**). `tf_deltant_pd_fc.sql` ist korrekt, aber im selben
-  Commit — sauberer Cherry-Pick auf `main` erst nach einer regulären
-  Klärung.
+- `tf_deltant_pd_fa.sql`/`tf_deltant_pd_azt.sql` bleiben mit dem
+  ursprünglichen Bug aus Runde 1 (Commit `ef7d0ad` auf
+  `qwen/bestand-multifile-adoption`, **ungemerged**) — Runde 3s
+  (anders gearteter, ebenfalls fehlerhafter) Versuch wurde bewusst nicht
+  committet. `tf_deltant_pd_fc.sql` ist korrekt, aber im selben Commit —
+  sauberer Cherry-Pick auf `main` erst nach einer regulären Klärung.
 - **Kein** Ledger-Eintrag für diesen Blocker in allen drei Runden:
   `ledger.jsonl` ist Qwens eigenes Selbstprotokoll (`AGENTS.md`) — Qwen
   hat den Blocker nie selbst erkannt/gemeldet (jede Runde endete ohne
   Schlussfolgerung), ein von mir fabrizierter Eintrag würde das
   Protokoll verfälschen.
+- **Neuer Infra-Nebenbefund (Runde 3):** `delta_union_dedup()` gibt keine
+  Quelldatei-/Tabellennamen-Spalte pro Zeile aus — eine dateiname-basierte
+  Ableitung wie im Original-T-SQL (`REPLACE([tabelle], ...)`) ist damit
+  aktuell gar nicht abbildbar. Für eine künftige Session vorgemerkt,
+  keine Handkorrektur in dieser.
 - **`permission.bash` ist inzwischen gefixt** (s. Teil 3, `CLAUDE.md`
   „Weiterhin offen") — betraf vermutlich *alle* bisherigen Qwen-Läufe
   dieses Projekts (Sessions 5, 6, 8), nicht nur diesen. Nicht
