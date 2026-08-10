@@ -1,7 +1,8 @@
 # AGENTS.md — für Qwen (Prüfling)
 
 **Du migrierst Objekte der Klasse B/C von T-SQL nach dbt-Exasol. Klasse A
-ist bereits deterministisch erledigt — fass sie nicht an.**
+ist bereits deterministisch erledigt — fass sie nicht an, außer über den
+Override-Mechanismus weiter unten.**
 
 ## Harte Regeln
 
@@ -30,17 +31,16 @@ ist bereits deterministisch erledigt — fass sie nicht an.**
   `rg <fehlertext oder EXEC-Aufruf> skills/` — u.a. Exasol-Fallstricke,
   Berichtszeitraum-Formel, Boilerplate- vs. Framework-Prozeduren.
 - Verbotene Konstrukte im generierten dbt-SQL: `#temp`-Tabellen, T-SQL-
-  Prozeduren, unquotierte gemischte Groß-/Kleinschreibung bei Schlüsseln
-  ohne Case-Prüfung.
+  Prozeduren, unquotierte gemischte Groß-/Kleinschreibung ohne Case-Prüfung.
 - **Schreibzugriff auf Exasol ausschließlich über `dbt run`/`make gate`,
-  nie per `exapump sql` mit `CREATE`/`INSERT`/`DROP`.** Fehlt eine
-  Upstream-Tabelle/-Quelle für einen isolierten Test: das ist ein
-  Blocker (Ledger, s.o.), keine Aufforderung, sie selbst zu bauen — auch
-  nicht testweise. Verstoß in Session 5 [laufzeit-verifiziert]: ein
-  Objekt wurde als „isoliert erfolgreich" gemeldet, obwohl die komplette
-  Upstream-Kette per Hand fabriziert war — wertlos. Lesendes Debugging
-  nur über `tools/exapump_select.sh "<SELECT ...>"` (s.u.), rohes
-  `exapump sql` ist technisch gesperrt.
+  nie per `exapump sql` mit `CREATE`/`INSERT`/`DROP`.** Fehlende Upstream-
+  Tabelle/-Quelle = Blocker (Ledger, s.o.), nicht selbst fabrizieren, auch
+  nicht testweise (Verstoß Session 5, Ergebnis war wertlos). Lesendes
+  Debugging nur über `tools/exapump_select.sh "<SELECT ...>"` (s.u.).
+- **Ausnahme Klasse A:** G3 zeigt manchmal einen echten Content-Fehler in
+  einer generierten Klasse-A-Datei (z.B. `tf_pd_fa.sql`). Fix wie gewohnt,
+  Modellname zusätzlich in `dbt/models/qwen_owned.txt` eintragen und
+  mitcommitten — sonst verwirft der nächste `render-a`/`make gate` ihn.
 
 ## Deine Kommandos
 

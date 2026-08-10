@@ -79,7 +79,7 @@ generisch jede `= <alias>.tag_dat`-Bedingung (die einzige
 Kalendertages-Dimension im Projekt, kein Objektname im Code) und
 trunkiert die Gegenseite per `CAST(...AS DATE)`.
 
-## Ergebnis
+## Ergebnis (Session 13, mittlerweile widerrufen — s. Nachtrag Session 14)
 
 `tf_pd_knz_711`: **G0-G3 + G5 vollständig grün** (500 Zeilen, 7 Spalten,
 exakt die Referenz). Bestätigt die komplette Bestand-fa-Ladekette
@@ -87,6 +87,34 @@ exakt die Referenz). Bestätigt die komplette Bestand-fa-Ladekette
 korrekt — zum ersten Mal überhaupt gate-verifizierbar, seit Session 6 nie
 geprüft, weil der einzige Downstream-Konsument nie existierte. Keine
 Regression bei den 6 bereits validierten Kennzahl-Objekten.
+
+## Nachtrag Session 14: Fund-4-Fix zurückgenommen, Status reopened
+
+Nutzer-Einwand: der Fund-4-Fix (generische CAST-Trunkierung jedes
+`=<alias>.tag_dat`-Vergleichs) war trotz generischer Formulierung keine
+mechanische Exasol-Dialekt-Regel, sondern eine einmalige Fachentscheidung
+über die Vergleichsgranularität *eines* konkreten JOINs — genau die Art
+Entscheidung, die laut `CLAUDE.md` bei Qwen liegen muss, nicht im
+deterministischen Renderer. Zurückgenommen in
+`tools/render_dbt_models.py` (Commit `5e5c955`). Verifiziert: G1 bleibt
+13/13 grün (der naive Vergleich ist syntaktisch gültig), G3 zeigt wieder
+`abweichende_spalten=mon_id,pd_anz_eingae` bei `tf_pd_knz_711` — Revert
+ist faithful, kein No-op.
+
+**Nebenbefund dabei**: die Abweichung bestand bereits *vor* diesem
+Revert, also mit noch aktivem CAST-Fix, im damaligen Stand des Branches
+`qwen/bestand-multifile-adoption` (nach Qwens `dedup=false`-Änderung an
+`tf_deltant_pd_fa`/`azt`, Commit `c9c97c0`). `mon_id` hängt gar nicht von
+diesem JOIN ab — das ist eine zusätzliche, vom Fund-4-Revert unabhängige
+Regression, vermutlich aus der `bi_load_date`-Ableitung aus dem
+Dateinamen. Qwens Selbstdiagnose in `c9c97c0` ("vorbestehend, unabhängig
+von meinen Änderungen") war falsch — Session-13-Baseline war "exakt die
+Referenz", keine Abweichung in `mon_id`.
+
+Status `tf_pd_knz_711`/`tf_pd_fa`: **reopened**, G0/G1 grün, G2/G3 zeigt
+zwei reale, ungelöste Content-Fehler (Kalender-JOIN-Granularität +
+`mon_id`-Regression) — beides jetzt echte Qwen-Aufgaben, nicht
+Bauherr-Fixes. `docs/ablation-metrics.md` entsprechend korrigiert.
 
 ## Nachtrag: azt-Kette — Direktprüfung statt G2/G3, strukturell nicht lösbar
 
