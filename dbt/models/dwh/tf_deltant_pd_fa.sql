@@ -19,6 +19,7 @@ SELECT
     "pd_rks_a_id",
     0 AS "pd_anz_eingae",
     0 AS "pd_anz_in_bear",
-    CAST("bi_timestamp" AS DATE) AS "bi_load_date",
-    "bi_timestamp" AS "bi_load_filename"
-FROM {{ delta_union_dedup('fa', '"bi_load_date"') }} AS d
+    CAST(SUBSTR(REPLACE(d.mfd_quelldatei, 'BI_DELTA_FA_', ''), 1, 4) || '-'
+    || SUBSTR(REPLACE(d.mfd_quelldatei, 'BI_DELTA_FA_', ''), 5, 2) || '-01' AS DATE) AS "bi_load_date",
+    d.mfd_quelldatei AS "bi_load_filename"
+FROM {{ delta_union_dedup('fa', '"pd_agent_nr"', false) }} AS d

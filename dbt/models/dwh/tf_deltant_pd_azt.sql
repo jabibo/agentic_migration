@@ -14,6 +14,7 @@ SELECT
     "pd_status",
     "pd_bez",
     "pd_kurzbez",
-    CAST("bi_timestamp" AS DATE) AS "bi_load_date",
-    "bi_timestamp" AS "bi_load_filename"
-FROM {{ delta_union_dedup('azt', '"bi_load_date"') }} AS d
+    CAST(SUBSTR(REPLACE(d.mfd_quelldatei, 'BI_DELTA_AZT_', ''), 1, 4) || '-'
+    || SUBSTR(REPLACE(d.mfd_quelldatei, 'BI_DELTA_AZT_', ''), 5, 2) || '-01' AS DATE) AS "bi_load_date",
+    d.mfd_quelldatei AS "bi_load_filename"
+FROM {{ delta_union_dedup('azt', '"pd_pkey"', false) }} AS d
