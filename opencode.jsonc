@@ -85,11 +85,42 @@
         // dieselbe Abwaegung wie bei der bestehenden edit-Bypass-Luecke):
         // schuetzt gegen normales Werkzeug-Verhalten, nicht gegen einen
         // absichtlich evasiven Agenten.
+        // TEST (docs/session10-rejection-mechanism.md): Catch-all von
+        // "ask" auf "deny" umgestellt. "ask" ist im Headless-Betrieb
+        // ohnehin faktisch immer eine Ablehnung (nichts kann es
+        // beantworten) -- das AENDERT NICHTS am Ergebnis einzelner
+        // Tool-Aufrufe. Laufzeit-verifiziert (30/30 Transkripte dieser
+        // Session): eine "ask"-Ablehnung beendet den gesamten Agenten-
+        // Loop sofort, ohne dass das Modell je einen weiteren Turn
+        // bekommt -- eine explizite "deny"-Ablehnung (1 beobachteter
+        // Fall) liess die Session dagegen normal weiterlaufen (64
+        // weitere Ereignisse). Hypothese: "deny" liefert dem Modell
+        // ein regulaeres Tool-Fehlerergebnis zurueck, "ask" bricht im
+        // Headless-Modus stattdessen den ganzen Prozess ab. Noch nicht
+        // breit bestaetigt (n=1 fuer den Vergleichsfall) -- deshalb
+        // hier als Test markiert, nicht als endgueltige Entscheidung.
         "bash": {
-          "*": "ask",
+          "*": "deny",
           "make gate MONAT=*": "allow",
           "make compare MONAT=*": "allow",
           "tools/exapump_select.sh *": "allow",
+          // Git add/commit fuer Qwens eigenen Abschluss-Schritt (AGENTS.md:
+          // "Ein Objekt = ein Branch = ein Commit ... dein Modell trotzdem
+          // committen"). Bisher fehlte JEDES git-Pattern in dieser Liste --
+          // ueber die gesamte Historie dieser Datei (git log -p geprueft) --
+          // Qwen konnte technisch nie selbst committen. Laufzeit-verifiziert
+          // (KNZ-709-Runde, diese Session): 4 aufeinanderfolgende, identisch
+          // abgelehnte "git add -f ... && git commit"-Versuche, Aenderung
+          // blieb uncommitted im Working Tree liegen. Scope deckungsgleich
+          // mit den einzigen fuer Qwen schreibbaren Pfaden in "edit" oben
+          // (dbt/**, ledger.jsonl, memory/rules/**) -- "git add -A"/"git
+          // add ." o.ae. matcht keines der folgenden Patterns, faellt auf
+          // den bash-Catch-all "deny" zurueck.
+          "git add -f dbt/models/*": "allow",
+          "git add ledger.jsonl": "allow",
+          "git add -f memory/rules/*": "allow",
+          "git commit -m *": "allow",
+          "git add -f dbt/models/* && git commit -m *": "allow",
           "tail *": "allow",
           "head *": "allow",
           "cat *": "allow",
@@ -106,7 +137,17 @@
           "*>*AGENTS.md*": "deny",
           "*>*CLAUDE.md*": "deny",
           "*>*opencode.jsonc*": "deny"
-        }
+        },
+        // Laufzeit-verifiziert (docs/session10-rejection-mechanism.md,
+        // KNZ-709-Runde 14): Zugriffe ausserhalb des Projektverzeichnisses
+        // (z.B. /tmp/gate_*.log) laufen ueber eine EIGENE Permission-
+        // Kategorie, nicht ueber "bash" -- der ask->deny-Fix dort deckt
+        // das nicht ab, default bleibt "ask" (dieselbe fatale Wirkung im
+        // Headless-Betrieb). Passt zu tools/gate.sh's eigener Absicht
+        // ("Rohlogs nicht in Agenten-Kontext geben") -- explizit auf
+        // deny gesetzt statt implizit ueber den unbeantwortbaren
+        // ask-Default zu scheitern.
+        "external_directory": "deny"
       }
     }
   }
