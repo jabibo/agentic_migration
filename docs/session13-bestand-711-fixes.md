@@ -88,9 +88,30 @@ korrekt — zum ersten Mal überhaupt gate-verifizierbar, seit Session 6 nie
 geprüft, weil der einzige Downstream-Konsument nie existierte. Keine
 Regression bei den 6 bereits validierten Kennzahl-Objekten.
 
-Nicht angefasst: `azt`-Kette (`tf_deltant_pd_azt`) — hat keinen eigenen
-Downstream-Konsumenten unter den validierten Objekten, bleibt weiterhin
-nur G0/G1-geprüft, nicht G2/G3.
+## Nachtrag: azt-Kette — Direktprüfung statt G2/G3, strukturell nicht lösbar
+
+Auf Nutzeranfrage die `azt`-Kette (`tf_deltant_pd_azt`/`_k`) geprüft, in
+der Annahme, ein KNZ-711-artiger versteckter Konsument könnte dort
+ebenfalls fehlen. Ergebnis: **es gibt keinen** — anders als `fa`.
+`grep` über alle 15 Quellskripte und `reports/lineage.jsonl` zeigt:
+`tf_deltant_pd_azt` wird ausschließlich in seinem eigenen Ladeschritt
+(`PD LOAD.Bestandsuebernahme.sql`) referenziert, nirgends sonst, auch
+nicht als Quelle in der Lineage. Kein Downstream-Objekt existiert im
+aktuellen Korpus, das eine Referenzdatei und damit eine Gate-Prüfung
+ermöglichen würde.
+
+Stattdessen eine Direktprüfung (Zeilenzahl + Stichprobe gegen die rohe
+CSV, analog zur Methodik bei `fa`s `pd_dat_eing`-Fund, aber ohne eine
+Referenz zum Abgleichen): 500 CSV-Datenzeilen = 500 geladene Zeilen,
+3 Beispielzeilen wertgenau identisch, `tf_deltant_pd_azt_k` (Kappung)
+ebenfalls 500 Zeilen (Lade-Zeitstempel liegt weit im Kappungsfenster).
+Reine 1:1-Passthrough-Struktur ohne abgeleitete Spalten, die einen Bug
+verstecken könnten. Kein Hinweis auf einen Fehler — aber das ist eine
+Direktprüfung, kein Gate-Beweis, und bleibt es auch, solange kein
+Objekt migriert wird, das `azt` tatsächlich konsumiert. Bewusst nicht
+weiterverfolgt (Scope-Erweiterung, keine Fortsetzung der aktuellen
+Prüfung) -- `ablation-metrics.md` entsprechend präzise formuliert
+(nicht mit `fa`s Gate-bewiesenem Status gleichgesetzt).
 
 ## Related
 `docs/session12-mon_id-skill-korrektur.md` · `docs/session6-bestand-run.md` ·
