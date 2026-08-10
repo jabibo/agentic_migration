@@ -25,7 +25,7 @@ SELECT
     WHEN 2 THEN 18
     ELSE 27
   END AS "pt_mit_faktor",
-  9999 AS "pd_traeger_id",
+  99999 AS "pd_traeger_id",
   {{ var('verarbeitungsmonat') }} AS "mon_id"
 FROM {{ ref('tf_pd_fc') }} AS fc
 LEFT JOIN {{ ref('tt_knz701_sum_beh') }} AS tt
