@@ -67,10 +67,18 @@ fi
 echo
 echo "=== G5: Idempotenz (zweimal laufen lassen, Hash vergleichen) ==="
 for m in "${MODELS[@]}"; do
-    h1="$("$PY" tools/compare_data.py --month "$MONAT" --model "$m" --hash-only 2>/dev/null)"
+    h1="$("$PY" tools/compare_data.py --month "$MONAT" --model "$m" --hash-only 2>/dev/null)"; rc1=$?
     ( cd dbt && dbt run --profiles-dir . --vars "{verarbeitungsmonat: \"$MONAT\"}" --select "$m" ) >/dev/null 2>&1
-    h2="$("$PY" tools/compare_data.py --month "$MONAT" --model "$m" --hash-only 2>/dev/null)"
-    if [ "$h1" != "$h2" ]; then
+    h2="$("$PY" tools/compare_data.py --month "$MONAT" --model "$m" --hash-only 2>/dev/null)"; rc2=$?
+    # Laufzeit-verifiziert (diese Session): ein fehlgeschlagener --hash-only-
+    # Aufruf (Tabelle existiert nicht, Exasol-Fehler) liefert leeren stdout
+    # UND leeren stdout beim zweiten Aufruf -- "" == "" wurde vorher
+    # faelschlich als "Hash stabil" gewertet. Exit-Code beider Aufrufe daher
+    # explizit pruefen, nicht nur den String-Vergleich.
+    if [ "$rc1" -ne 0 ] || [ "$rc2" -ne 0 ] || [ -z "$h1" ] || [ -z "$h2" ]; then
+        echo "E G5-IDEMPOTENZ model=$m hash-only fehlgeschlagen (rc1=$rc1 rc2=$rc2) -- kein Vergleich moeglich, nicht als OK werten"
+        fail=1
+    elif [ "$h1" != "$h2" ]; then
         echo "E G5-IDEMPOTENZ model=$m hash_lauf1=$h1 hash_lauf2=$h2"
         fail=1
     else
