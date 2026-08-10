@@ -8,7 +8,7 @@ WITH valid_durch AS (
 ),
 base AS (
   SELECT
-    1 AS Anzahl,
+    1 AS "anzahl",
     fc."pd_auftr_id",
     fc."org_id",
     fc."pd_tae_durch",
@@ -24,13 +24,15 @@ base AS (
     ) AS INT) BETWEEN {{ knz_erster_monat(708) }} AND {{ knz_letzter_monat(708) }}
 )
 SELECT
-  b."Anzahl",
+  b."anzahl",
   b."pd_auftr_id",
   b."org_id",
   CASE
     WHEN b."pd_tae_durch" IS NULL THEN 9999
-    WHEN b."pd_tae_durch" NOT IN (SELECT "tkd_id" FROM valid_durch) THEN 9999
+    WHEN vd."tkd_id" IS NULL THEN 9999
     ELSE b."pd_tae_durch"
   END AS "pd_tae_durch",
   b."MON_ID"
 FROM base AS b
+LEFT JOIN valid_durch AS vd
+  ON b."pd_tae_durch" = vd."tkd_id"
