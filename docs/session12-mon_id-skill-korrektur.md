@@ -1,4 +1,11 @@
-# Session 12 — MON_ID-Skill widerrufen, KNZ 701/706 abgeschlossen
+# Session 12 — MON_ID-Skill widerrufen, dann die Widerrufung selbst widerrufen
+
+**Zusammenfassung vorweg, für eilige Leser:** dieses Dokument beschreibt
+zunächst einen (vermeintlichen) Fund — die `kennzahl-berichtszeitraum.md`-
+Anleitung zu `MON_ID` sei falsch — und korrigiert ihn im späteren
+Abschnitt "Doppelte Kehrtwende" wieder zurück. Der ursprüngliche Zustand
+(`MON_ID = var('verarbeitungsmonat')`) war die ganze Zeit richtig. Wer
+nur eine Fassung lesen will: ans Ende springen.
 
 Fortsetzung von Session 11 (`docs/session11-g3-bugs-und-commit-luecke.md`).
 Nach den dortigen Gate-Fixes (col_hash, source()/ref(), G5, Commit-
@@ -37,10 +44,11 @@ genau der vorgesehene Regelgedächtnis-Mechanismus. Commit `b25d7a2`, 0
 abgelehnte Aufrufe für den eigentlichen Fix. Bauherr-seitig gegengeprüft:
 G2+G3+G5 grün bei `MONAT=202312`.
 
-**Aber:** der dritte Teil des Fixes (`MON_ID` = `var('verarbeitungsmonat')`)
-beruft sich auf eine Skill-Anleitung, die sich als falsch herausstellte
-— s. u. Der grüne Stand bei 202312 beweist nicht, dass das Objekt
-tatsächlich korrekt ist.
+**Zwischenstand, später widerlegt:** der dritte Teil des Fixes (`MON_ID`
+= `var('verarbeitungsmonat')`) beruft sich auf eine Skill-Anleitung, die
+hier zunächst als falsch eingeordnet wurde — s. u. **Vorgriff auf den
+Abschnitt "Doppelte Kehrtwende" weiter unten: diese Einordnung war
+selbst falsch, die Konstante ist richtig, kein Vorbehalt nötig.**
 
 ## Der eigentliche Fund: `kennzahl-berichtszeitraum.md`s MON_ID-Anleitung war falsch
 
@@ -84,7 +92,10 @@ die zu dem Bug geführt hat, damit sie sich nicht in weitere Objekte
 propagiert (der Skill nennt selbst 701, 702, 703, 708 als potenziell
 betroffen).
 
-## Nachtrag: 705/709 gegen 202401 nachgetestet — Bug direkt bestätigt
+## Nachtrag: 705/709 gegen 202401 nachgetestet — vermeintlich bestätigt, s. Korrektur unten
+**Auch dieser Abschnitt ist durch "Doppelte Kehrtwende" weiter unten
+überholt — die "Bestätigung" hier beruhte auf derselben Fehlinterpretation
+wie der ursprüngliche Skill-Fund.**
 
 `make gate MONAT=202401` + `make compare MONAT=202401` gegen die
 aktuellen (unveränderten) Modelle von 705 und 709 gefahren. Ergebnis
@@ -111,6 +122,85 @@ kann strukturell nie mehr als einen einzigen `MON_ID`-Wert erzeugen, die
 Referenz verlangt aber mehrere. Der MON_ID-Bug ist damit nicht nur aus
 der Referenzdatei-Analyse abgeleitet, sondern am laufenden Modell
 bestätigt.
+
+## Doppelte Kehrtwende: die Korrektur war selbst falsch
+
+Auf Nutzeranweisung ("Erst 705 fixen, damit die Skill-Korrektur direkt
+bewiesen wird") KNZ 705 angegangen — dabei zunächst ein eigener
+Navigationsfehler: `qwen/knz-705` (die nominell "richtige" Objekt-Branch)
+ist seit Session 5 abgehängt, der tatsächliche Fortschritt lief über
+`qwen/knz705-berichtszeitraum-fix` (separate Branch, längst in
+`qwen/knz-709` und andere eingeflossen). Zwei Runden auf der veralteten
+Branch verpufften dadurch wirkungslos (dokumentiert oben, vor diesem
+Abschnitt) — kein Schaden, aber verschwendeter Aufwand.
+
+Auf der richtigen Branch (`qwen/knz-709`) zeigte sich: der tatsächlich
+verbleibende Bug war genau der, den Commit `65bc10f` (Session 8, von mir/
+Bauherr, nicht von Qwen) eingeführt hatte — `MON_ID = var('verarbeitungsmonat')`
+statt Pro-Zeile-Ableitung, exakt die (damals wie heute) fragliche
+Anleitung. Eine dritte Runde (Versuch 1 auf der richtigen Branch) hat den
+Fix korrekt gemäß der (zu dem Zeitpunkt) korrigierten Skill-Anleitung
+umgesetzt: `CAST(TO_CHAR(fc."pd_abschl_dat", 'YYYYMM') AS INT) AS MON_ID`.
+
+**Dann die eigentliche Überraschung:** `make compare MONAT=202312`
+zeigte danach `abweichende_spalten=mon_id` — ein Fehler, wo vorher
+keiner war. Das widersprach der eigenen Vorhersage im Rundenprompt
+("bleibt vermutlich unverändert grün"). Bauherr-seitig direkt
+nachgeprüft statt Qwens Hypothese (Referenz sei selbst mit dem
+"buggy" Modell erzeugt worden) ungeprüft zu übernehmen:
+
+```
+live (Pro-Zeile-Ableitung), 202312: MON_ID 202310 (1x), 202311 (6x), 202312 (13x)
+Referenz, 202312: MON_ID nur 202312 (20x)
+```
+
+Identische `pd_auftr_id`-Menge auf beiden Seiten bestätigt (20/20) —
+kein Artefakt unterschiedlicher Zeilenmengen. Für 7 der 20 Aufträge
+liegt das eigene `pd_abschl_dat` nachweislich in einem früheren Monat,
+die Referenz zeigt trotzdem `202312`. Das ist ein **direkter Beweis**,
+kein Fehlen von Gegenbeweisen wie bei der ursprünglichen (jetzt zweimal
+korrigierten) Skill-Behauptung.
+
+**Wo der Denkfehler lag:** die Beobachtung "MON_ID akkumuliert über
+Monate in der Referenz" (202312→202401 zeigt zwei Werte) wurde als
+Beweis für Pro-Zeile-Ableitung gelesen. Das ist ein Fehlschluss — dieselbe
+Beobachtung ist genauso mit "Konstante pro Verarbeitungslauf, einmal
+vergeben, nie neu berechnet" vereinbar (klassische Bestandsfortschreibung:
+neue Zeilen bekommen den aktuellen Monat, alte Zeilen behalten ihren
+ursprünglichen Wert). Beide Hypothesen erklären die Akkumulation über
+Monate gleich gut — nur ein Test **innerhalb eines einzelnen Monats**
+(wie der obige) kann sie unterscheiden, und der entscheidet eindeutig
+zugunsten der Konstante.
+
+**Warum das dem T-SQL-Quelltext widerspricht** (der eine Pro-Zeile-
+CONVERT-Formel zeigt), bleibt ungeklärt — plausibelste Hypothese:
+`MON_ID` wird in der echten Produktion beim Bestandseintritt einmalig
+vergeben, nicht bei jeder Abfrage aus `pd_abschl_dat` neu berechnet; der
+Testkorpus enthält vermutlich (Timing-Artefakt, nicht Fachlogik-Artefakt)
+Datensätze mit `pd_abschl_dat` aus Vormonaten, die in einem echten
+Produktions-Delta so nicht vorkämen. Nicht verifiziert.
+
+**Korrigiert:**
+- `dbt/models/fact/tf_pd_knz_705.sql`: Qwens uncommitteter Versuch-1-Fix
+  verworfen (`git checkout --`), nie committet. Datei zurück auf den
+  korrekten (grünen) Stand.
+- `skills/transpile/kennzahl-berichtszeitraum.md`: MON_ID-Abschnitt
+  erneut korrigiert — Konstante ist richtig, mit dem Beweis oben,
+  nicht nur einer Behauptung.
+- Konsequenz für KNZ 706 (oben als "gelöst, aber mit Vorbehalt"
+  beschrieben) und KNZ 709 (3/4 gelöst): der Vorbehalt entfällt. Beide
+  waren mit der Konstante von Anfang an korrekt, nicht nur zufällig
+  grün. Qwens ursprüngliche MON_ID-Fixes (`e9f4eb1` für 709, Teil von
+  `b25d7a2` für 706) waren richtig — meine heutige "Korrektur" war die
+  eigentliche Regression, nicht der Ausgangszustand.
+
+**Einordnung:** zwei Kehrtwenden am selben Tag zum selben Skill-Abschnitt
+sind kein gutes Zeichen für die eigene Sorgfalt. Der Unterschied zur
+ersten (fehlerhaften) Korrektur: diese hier stützt sich auf einen
+direkten, row-für-row abgeglichenen Test mit identischer Auftragsmenge,
+nicht auf eine Analogie-Schlussfolgerung aus Cross-Monats-Akkumulation.
+Trotzdem: bevor dieser Skill ein drittes Mal geändert wird, braucht es
+einen noch härteren Test, keine weitere Analogie.
 
 ## Nebenbefund: `check_ref.py` — zweites Auftreten
 
