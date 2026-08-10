@@ -1,18 +1,18 @@
-# Fachnotiz — PD KNZ 702.KNZ 702.sql (→ tf_pd_knz_702)
+# Fachnotiz — PD KNZ 702.KNZ 702.sql (tf_pd_knz_702)
 
-## ~17 hartcodierte 0-Platzhalter-Spalten
+## ~17 hartcodierte 0-Spalten
 `GLZ_NETTO_in_Wochen`, `sm_10_days`..`sm_50_days`,
-`bg_15_days`..`bg_45_days` usw. sind seit "Hotfix MR 26.02.2015, Schema
-MSTR-Projekt muss noch angepasst werden" fest auf `0` gesetzt — die
-Bucketing-Logik existiert an anderer Stelle bereits erkennbar
-(`btw_31_to_50_days`, `bg_50_days`, `sm_11_days`, `bg_10_days` sind
-echt berechnet), das lädt dazu ein, das fehlende Muster für die
-0-Spalten zu "vervollständigen". **Nicht tun** — das wäre erfundene
-Fachlogik. Die Referenz erwartet exakt 15 Spalten mit den 0-Werten
-so, wie sie im Original stehen.
+`bg_15_days`..`bg_45_days` usw. stehen seit einem Hotfix vom
+26.02.2015 ("Schema MSTR-Projekt muss noch angepasst werden") fest
+auf `0` — obwohl die Bucketing-Logik für benachbarte Tagesgrenzen
+(`btw_31_to_50_days`, `bg_50_days`, `sm_11_days`, `bg_10_days`) direkt
+daneben echt berechnet wird. Das sieht aus wie eine unvollständige
+Implementierung, die sich naheliegend "vervollständigen" ließe — ist
+aber ein zehn Jahre alter, offenbar nie aufgegriffener Zwischenstand.
+Wer das anfasst, sollte wissen, dass die 0-Werte Absicht sind, kein
+Auftrag zum Nachrüsten.
 
-## Zeitraum-Sonderfälle im Kommentarheader
-Mehrere historische Sonderbehandlungen (BM 201312, BM 201412) werden
-im Header erwähnt, sind aber im aktiven SQL selbst nicht mehr als
-Verzweigung sichtbar (anders als bei KNZ 703) — nur Dokumentation
-vergangener Migrationsschritte, nicht als aktive Logik zu übersetzen.
+## Historische Sonderfälle im Kommentarkopf
+Der Header erwähnt mehrere frühere Sonderbehandlungen (z.B. BM 201312,
+BM 201412), die im aktiven SQL selbst nicht mehr als Verzweigung
+auftauchen (anders als bei KNZ 703) — reine Entstehungsgeschichte.

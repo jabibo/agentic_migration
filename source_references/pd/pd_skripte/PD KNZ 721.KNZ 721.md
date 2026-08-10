@@ -1,5 +1,4 @@
 # Fachnotiz — PD KNZ 721.KNZ 721.sql
 
-Komplettes Skript ist auskommentiert (totes Objekt, MYSKILLS-Kennzahl,
-nie aktiviert). Triage stuft es korrekt als `excluded` ein. Keine
-Migrationsaufgabe.
+Das komplette Skript ist auskommentiert — eine nie aktivierte
+Kennzahl für MYSKILLS. Für die praktische Arbeit ohne Bedeutung.
