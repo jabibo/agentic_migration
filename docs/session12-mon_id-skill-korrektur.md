@@ -84,6 +84,34 @@ die zu dem Bug geführt hat, damit sie sich nicht in weitere Objekte
 propagiert (der Skill nennt selbst 701, 702, 703, 708 als potenziell
 betroffen).
 
+## Nachtrag: 705/709 gegen 202401 nachgetestet — Bug direkt bestätigt
+
+`make gate MONAT=202401` + `make compare MONAT=202401` gegen die
+aktuellen (unveränderten) Modelle von 705 und 709 gefahren. Ergebnis
+zunächst unentschieden: beide zeigen einen **Rowcount**-Fehler
+(705: 11 statt 31; 709: 417 statt 816) — das ist die bereits bekannte,
+separate Testaufbau-Lücke (kein Vormonat-Delta geladen, s. Session 11),
+kein neuer Befund, verdeckt aber den spaltenweisen Vergleich
+(`check_data()` prüft `abweichende_spalten` nur bei übereinstimmender
+Zeilenzahl).
+
+Gezielter Nachcheck direkt gegen Exasol statt über den Rowcount-Vergleich:
+
+```
+SELECT DISTINCT MON_ID FROM ...con_pd_fact_202401.tf_pd_knz_705  -> {202401}
+SELECT DISTINCT "mon_id" FROM ...con_pd_fact_202401.tf_pd_knz_709 -> {202401}
+```
+
+Beide Modelle liefern für **alle** Zeilen ausschließlich `202401` — ein
+einziger Wert. Die Referenz für denselben Monat (`fact__tf_pd_knz_705.parquet`,
+202401) enthält dagegen **zwei** Werte: `{202312, 202401}`. Unabhängig
+von der Rowcount-Diskrepanz ist das ein direkter, gate-naher Beleg (nicht
+nur eine Parquet-Analyse): die Konstante `var('verarbeitungsmonat')`
+kann strukturell nie mehr als einen einzigen `MON_ID`-Wert erzeugen, die
+Referenz verlangt aber mehrere. Der MON_ID-Bug ist damit nicht nur aus
+der Referenzdatei-Analyse abgeleitet, sondern am laufenden Modell
+bestätigt.
+
 ## Nebenbefund: `check_ref.py` — zweites Auftreten
 
 Bei KNZ 706 hat Qwen erneut (wie schon bei KNZ 709, Session 11) ein
