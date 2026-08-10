@@ -107,7 +107,46 @@ load_knz_views() {
         SELECT * FROM ${dim_schema}.vd_as_bps_region" >/dev/null
     exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${calc_schema}.td_ueb_kalender_Tag AS
         SELECT * FROM ${dim_schema}.td_ueb_kalender_tag" >/dev/null
-    echo "    3 Views erstellt (vd_pd_dienststelle, vd_as_bps_Region, td_ueb_kalender_Tag)."
+
+    # KNZ-706-Handoff (Session 9): dieselbe Luecke, vier weitere Dimensionen
+    # -- reale Daten liegen unter vd_as_* in DIM, con_pd_knz erwartet andere
+    # Namen. Wie oben: voller Pass-Through (SELECT *), keine Spaltenauswahl,
+    # keine Fachentscheidung -- nur bei vd_pd_dienststelle war die Spalten-
+    # einschraenkung ein bereits dokumentierter, spezifischer Fund.
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_pd_taetigkeit_beauftragt AS
+        SELECT * FROM ${dim_schema}.vd_as_pd_taetigkeitbeauftragt" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_bps_stelle AS
+        SELECT * FROM ${dim_schema}.vd_as_bps_stelle" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_pd_abschlussart AS
+        SELECT * FROM ${dim_schema}.vd_as_pd_abschlussart" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_bps_Abschlussgrund AS
+        SELECT * FROM ${dim_schema}.vd_as_bps_abschlussgrund" >/dev/null
+
+    # KNZ-701-Handoff (Session 10, Batch-Lauf): dieselbe Luecke, restliche
+    # con_pd_knz-Quellen aus dbt/models/sources.yml (deterministisch aus
+    # reports/lineage.jsonl, s. tools/render_dbt_models.py) auf einmal
+    # nachgezogen -- vermeidet, dass jedes Batch-Objekt einzeln an derselben
+    # Infra-Luecke haengen bleibt, bevor es zur eigentlichen Migrations-
+    # arbeit kommt.
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_as_bps_Dringlichkeit AS
+        SELECT * FROM ${dim_schema}.vd_as_bps_dringlichkeit" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_bps_Bildungsabschluss AS
+        SELECT * FROM ${dim_schema}.vd_as_pd_bildungsabschluss" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_bps_Bildungsniveau AS
+        SELECT * FROM ${dim_schema}.vd_as_pd_bildungsniveau" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_bps_rechtskreis_auftraggeber AS
+        SELECT * FROM ${dim_schema}.vd_as_bps_rechtskreisauftraggeber" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_pd_geschlecht AS
+        SELECT * FROM ${dim_schema}.vd_as_pd_geschlecht" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_pd_leistung AS
+        SELECT * FROM ${dim_schema}.vd_as_pd_leistung" >/dev/null
+    exapump sql -p "$PROFILE" "CREATE OR REPLACE VIEW ${knz_schema}.vd_pd_taetigkeit_durchgefuehrt AS
+        SELECT * FROM ${dim_schema}.vd_as_pd_taetigkeitdurchgefuehrt" >/dev/null
+    echo "    14 Views erstellt (con_pd_knz: vd_pd_dienststelle, vd_as_bps_Region,"
+    echo "    vd_pd_taetigkeit_beauftragt, vd_bps_stelle, vd_pd_abschlussart, vd_bps_Abschlussgrund,"
+    echo "    vd_as_bps_Dringlichkeit, vd_bps_Bildungsabschluss, vd_bps_Bildungsniveau,"
+    echo "    vd_bps_rechtskreis_auftraggeber, vd_pd_geschlecht, vd_pd_leistung,"
+    echo "    vd_pd_taetigkeit_durchgefuehrt; calc: td_ueb_kalender_Tag)."
 }
 
 case "$MODE" in

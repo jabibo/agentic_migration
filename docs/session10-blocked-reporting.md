@@ -1,0 +1,86 @@
+# Warum meldet Qwen nie `blocked`? — Ursache gefunden
+
+Über den gesamten Session-10-Batch (701, 702, 708, 709 — ~20 Runden
+insgesamt, mehrere davon 2+ Runden ohne Fortschritt auf demselben
+Gate-Fehler) hat kein einziges Objekt jemals einen `ledger.jsonl`-
+Eintrag mit `status: blocked` bekommen, obwohl `AGENTS.md`s eigenes
+Abbruchkriterium („3 Iterationen auf demselben Gate ohne Fortschritt
+→ blocked") mehrfach faktisch erreicht war.
+
+## Befund
+
+Geprüft: alle ~30 Prompts dieser Session (`/tmp/qwen_prompt_*.txt`) auf
+irgendeine explizite Nennung der Versuchsnummer („Versuch 3", „dritte
+Runde", o.ä.) — **null Treffer**.
+
+Jede `opencode run`-Runde ist eine **komplett neue, zustandslose
+Session** (kein `--continue`). Qwen bekommt in jeder Runde nur: den
+rohen Gate-Fehlertext + den aktuellen Dateiinhalt. Es hat **keine
+Erinnerung an vorherige Runden** — aus seiner Sicht könnte jede Runde
+der allererste Versuch sein. `AGENTS.md`s Abbruchkriterium verlangt
+aber explizit Selbstwissen über die eigene Iterationszahl
+(„3 Iterationen ohne Fortschritt"), das unter diesem Aufrufmuster
+**strukturell nicht existiert** — nicht, weil Qwen es nicht anwenden
+würde, sondern weil ihm die dafür nötige Information nie mitgegeben
+wurde.
+
+Das ist kein Modell-Versagen, sondern eine Protokoll-Lücke auf meiner
+(Bauherr-)Seite: ich habe in keinem einzigen Follow-up-Prompt jemals
+„das ist jetzt Versuch N" geschrieben.
+
+## Konsequenz für die bisherigen Session-10-Daten
+
+Die in `docs/ablation-metrics.md` dokumentierte Beobachtung „Ø 4,25
+Runden/Objekt, kein Objekt tatsächlich abgebrochen" ist damit nicht
+(nur) ein Qwen-Autonomie-Befund — sie ist teilweise ein Artefakt dieser
+Protokoll-Lücke. Ich selbst habe wiederholt (mit Nutzerzustimmung)
+über die 3er-Schwelle hinaus weiterversuchen lassen, aber selbst wenn
+ich das nicht getan hätte, hätte Qwen die Schwelle aus eigener Kraft
+nie erkennen können.
+
+## Zwei unabhängige, nicht-invasive Fixes (keine Content-Änderung)
+
+1. **Iterationszähler explizit im Prompt nennen** — bei jeder
+   Folgerunde `„Dies ist Versuch N von 3 auf diesem Gate. Bei
+   fehlendem Fortschritt jetzt: Zeile an ledger.jsonl anhängen
+   (status: blocked), nicht weiterversuchen."` mitgeben. Einfach,
+   sofort umsetzbar, ändert nichts an Qwens Modellinhalt.
+2. **Session-Kontinuität (`opencode run --continue`/`-s`)** — würde
+   Qwen die eigene Historie automatisch zugänglich machen, ohne dass
+   ich sie manuell mitgeben muss. Testet gleichzeitig eine andere
+   Hypothese (Kontextverlust als Konvergenz-Bremse, s.
+   `docs/session10-batch-run.md` Fazit) — beide Fragen hängen zusammen:
+   wenn Kontinuität hilft, löst sie vermutlich auch dieses Problem
+   nebenbei.
+
+Nächster Schritt: (2) empirisch testen (s. u.), da es beide Fragen auf
+einmal beantwortet.
+
+## Nachtrag: Fix (1) getestet — kein Erfolg, aber ein saubereres Bild
+
+Auf Nutzeranfrage Fix (1) direkt getestet: frische Runde (Runde 12, kein
+`-c`) mit explizit genannter Versuchsnummer und wörtlichem Verweis auf
+`AGENTS.md`s Abbruchkriterium samt fertigem `ledger.jsonl`-Zeilenformat
+im Prompt. Ergebnis: **kein Fortschritt, kein `ledger.jsonl`-Eintrag**
+— aber aufschlussreicher als ein bloßes „hat nicht funktioniert": Qwen
+prüfte von sich aus `ledger.jsonl` auf vorhandene `knz_709`-Einträge
+(zeigt, dass die Information angekommen ist und als relevant erkannt
+wurde), kam aber nie bis zu einer Entscheidung — die Session endete an
+einem abgelehnten `git log`-Aufruf (nicht in der Allowlist), bevor
+überhaupt eine Schlussfolgerung (Fix oder `blocked`-Meldung) möglich
+war.
+
+**Revidierte Einschätzung:** das „Session stirbt nach der ersten
+Ablehnung"-Muster (durchgängig seit Session 9 beobachtet) ist der
+tiefer liegende Blocker — tiefer als die fehlende Versuchsnummer. Selbst
+wenn Qwen die Information hat, um `blocked` zu melden, kommt es oft gar
+nicht bis zu dem Punkt in der Session, an dem es diese Entscheidung
+träfe, weil eine unrelated Ablehnung die Session vorher beendet. Fix
+(1) allein reicht also nicht — er müsste mit einer Lösung für das
+Abbruch-nach-Ablehnung-Muster kombiniert werden (z. B. `--auto`, aber
+das wurde in Session 9 aus guten Gründen verworfen; oder ein noch
+großzügigerer, aber weiterhin schreibgeschützter Lese-Befehl-Katalog).
+
+## Related
+`docs/ablation-metrics.md` · `docs/session10-batch-run.md` · `AGENTS.md`
+„Abbruchkriterium"
