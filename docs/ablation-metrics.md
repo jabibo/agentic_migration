@@ -47,7 +47,7 @@ erstmals echt (unaided) testen.
 | Objekt | Klasse | Runden (davon belastet) | Kosten gesamt | Erster Versuch G0/G1 sauber? | Finaler G0/G1-Status | Finaler G2-G5-Status | Autonomie unaided |
 |---|---|---|---|---|---|---|---|
 | PD KNZ 705.KNZ 705.sql | B | 2 (0) | $2,03 | Nein (Klasse-A-Bug in `render_dbt_models.py` gefunden, Bauherr-Infra-Fix, kein Content-Fix) | G0 12/12, G1 12/12 | **G0-G5 alle grün** | Ja |
-| PD LOAD.Bestandsuebernahme (fc/fa/azt, erste Serie) | C | 3 (1) | $0,65 | Teilweise (fc ok, fa/azt G1 grün aber inhaltlich falsch) | fc/fa/azt: alle grün | fc: **G0-G3+G5 alle grün** (via `tf_pd_knz_711`, Session 13); fa: **ebenso** (via `tf_pd_knz_711`, dieselbe Kette); azt: **nur Direktprüfung, kein G2/G3 möglich** — Zeilenzahl (500=500) und Stichprobe wertgenau gegen die rohe CSV verifiziert, aber kein Skript im gesamten Korpus konsumiert `tf_deltant_pd_azt` (auch nicht in der Lineage als Quelle), also keine Referenzdatei und kein Downstream-Modell, das eine Gate-Prüfung ermöglichen würde — strukturell, nicht behebbar ohne Scope-Erweiterung | fc/fa: ja, gate-bewiesen; azt: **inhaltlich plausibel** (Session 6 + Direktprüfung Session 13), aber nie gate-verifizierbar und das bleibt so, solange kein Konsument migriert wird |
+| PD LOAD.Bestandsuebernahme (fc/fa/azt, erste Serie) | C | 3 (1) | $0,65 | Teilweise (fc ok, fa/azt G1 grün aber inhaltlich falsch) | fc/fa/azt: alle grün | fc: **G0-G3+G5 alle grün** (via `tf_pd_knz_711`, Session 13); fa: **reopened (Session 14)** — Session-13-CAST-Fix für den Kalender-JOIN war ein verdeckter Bauherr-Content-Fix, zurückgenommen (`5e5c955`); G3 zeigt wieder `abweichende_spalten=mon_id,pd_anz_eingae` bei `tf_pd_knz_711`, dazu eine zweite, unabhängige `mon_id`-Regression aus Qwens `dedup=false`-Änderung (`c9c97c0`), deren eigene Selbstdiagnose ("vorbestehend") sich als falsch erwies; azt: **nur Direktprüfung, kein G2/G3 möglich** — Zeilenzahl (500=500) und Stichprobe wertgenau gegen die rohe CSV verifiziert, aber kein Skript im gesamten Korpus konsumiert `tf_deltant_pd_azt` (auch nicht in der Lineage als Quelle), also keine Referenzdatei und kein Downstream-Modell, das eine Gate-Prüfung ermöglichen würde — strukturell, nicht behebbar ohne Scope-Erweiterung | fc: ja, gate-bewiesen; fa: **offen (reopened)**, zwei reale Content-Fehler stehen jetzt zurecht als Qwen-Aufgabe an; azt: **inhaltlich plausibel** (Session 6 + Direktprüfung Session 13), aber nie gate-verifizierbar und das bleibt so, solange kein Konsument migriert wird |
 | tf_deltant_pd_fa/azt (Multi-File-Adoption) | C (Infra-Adoption) | 6 (2) | ~$0,14 | Nein | **nie grün** | nie erreicht | **Nein** — 0/6, endgültig gescheitert (Session 9), 2 Runden davon durch Bauherr-Diagnose/`--auto`-Eingriff belastet |
 | PD KNZ 706.KNZ 706.sql | B | 4 (0) + 1 (Session 12) | $0,10 + $0,321 | Ja (im ersten echten Schreibversuch, Runde 3 — Runden 1-2 scheiterten an Harness-Permissions, nicht an Qwens Modell) | G0 13/13, G1 13/13 | **G0-G3 + G5 alle grün** (Session 12: fehlende Spalte `pd_auftr_id` ergänzt, UPDATE-Normalisierung als `LEFT JOIN`, eigene `memory/rules/pd_normalisierung_left_join.md` geschrieben) | **Ja** — verifiziert autonomer Commit (`b25d7a2`) |
 | PD KNZ 701.KNZ 701.sql | B | 3 (0) + 1 (Session 11) | $0,18 + $0,013 | Nein (korrelierte NOT-IN-in-CASE, von Exasol nicht unterstützt) | G0 15/15, G1 15/15 (nach Selbstkorrektur) | **G0-G3 + G5 alle grün** (Session 11: Tippfehler `pd_traeger_id`, 1 Runde) | **Ja** — erstes Objekt mit verifiziertem Selbst-Commit (`f490655`) |
@@ -57,16 +57,14 @@ erstmals echt (unaided) testen.
 
 ## Kennzahlen
 
-- **Autonomierate (vollständig G0-G5 grün, unaided):** 6/8 (75 %) —
-  705, 701, 706, 708, 702, Bestand-Serie (fc/fa/azt). Wichtiger
-  Unterschied (s. Nachtrag oben): 705s und der Bestand-Seriens Commits
-  sind vermutlich Bauherr-vermittelt (Permission-Lücke existierte damals
-  bereits), 701/706/708/702 sind die einzigen vier Objekte mit
-  *verifiziert* eigenständigem Commit-Schritt. Bestand-Serie war
-  inhaltlich seit Session 6 korrekt, aber bis Session 13 nie
-  gate-verifizierbar (kein Downstream-Konsument existierte als
-  dbt-Modell) — Autonomie der Migration selbst unabhängig davon zu
-  bewerten von der Frage, wann sie *nachweisbar* wurde.
+- **Autonomierate (vollständig G0-G5 grün, unaided):** 5/8 (62,5 %) —
+  705, 701, 706, 708, 702. Bestand-Serie (fc/fa/azt) seit Session 14 aus
+  dieser Zahl entfernt: der Session-13-"Vollerfolg" beruhte auf einem
+  zurückgenommenen Bauherr-Content-Fix, `tf_pd_knz_711` zeigt aktuell
+  wieder reale G3-Abweichungen (s. Datenäquivalenz-Quote unten). Von den
+  verbleibenden fünf sind 705s Commit vermutlich Bauherr-vermittelt
+  (Permission-Lücke existierte damals bereits), 701/706/708/702 sind die
+  einzigen vier Objekte mit *verifiziert* eigenständigem Commit-Schritt.
 - **First-Pass-Yield (G0/G1 sauber im allerersten echten,
   unbelasteten Versuch):** 2/7 zählbare Klasse-B/C-Erstversuche
   (706 einmal es tatsächlich zu einem Schreibversuch kam, 708) ≈ 29 %.
@@ -87,12 +85,18 @@ erstmals echt (unaided) testen.
   Nutzerzustimmung) über die Schwelle hinaus versucht. Kein einziges
   Objekt hat sich selbst per `ledger.jsonl` als `blocked` gemeldet
   (s. `docs/session10-batch-run.md`, offene Frage).
-- **Datenäquivalenz-Quote (G2+G3 exakt erreicht):** 6/8 (75 %) — 705,
-  701, 706, 708, 702, Bestand-Serie (fc/fa/azt, via `tf_pd_knz_711`,
-  Session 13). 709 hat G3 erreicht und zu 3/4 gelöst, zählt aber wegen der
-  offenen `pd_rks_id`-Abweichung nicht als exakt. Nur noch Multi-File-
-  Adoption (1 von 8) hat G2/G3 nie erreicht — strukturell blockiert
-  (Cursor-/Multi-File-Ladepfad), nicht durch Inhaltsfehler.
+- **Datenäquivalenz-Quote (G2+G3 exakt erreicht):** 5/8 (62,5 %) — 705,
+  701, 706, 708, 702. Bestand-Serie zaehlt seit Session 14 NICHT mehr
+  mit: der vermeintliche fc/fa-Vollerfolg aus Session 13 beruhte auf
+  einem Bauherr-Content-Fix (Kalenderdimension-CAST), der als
+  methodischer Fehler zurückgenommen wurde — `tf_pd_knz_711` zeigt
+  aktuell wieder zwei reale, ungelöste G3-Abweichungen
+  (`mon_id`, `pd_anz_eingae`), s. `docs/session13-bestand-711-fixes.md`
+  Nachtrag Session 14. 709 hat G3 erreicht und zu 3/4 gelöst, zählt aber
+  wegen der offenen `pd_rks_id`-Abweichung nicht als exakt. Multi-File-
+  Adoption (fa/azt) bleibt ebenfalls offen — G1 inzwischen grün
+  (Qwen-Fix `c9c97c0`), G2/G3 aber jetzt aktiv wieder rot statt vorher
+  "nie erreicht".
 - **Token-Kosten/Objekt:** stark gestreut ($0,084 bis $2,03), Median
   ≈ $0,18. Der teuerste Fall (705, $2,03) war der allererste Lauf des
   Projekts ohne jede Vorerfahrung/Regelgedächtnis — spätere Objekte
