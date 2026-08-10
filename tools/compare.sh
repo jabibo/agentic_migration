@@ -6,10 +6,12 @@
 # -- das ist der Punkt: der Agent darf diesen Harness nie beeinflussen
 # koennen, siehe docs/adr/0001-deterministik-first.md.
 #
-# Nur Objekte mit passender Referenzdatei sind pruefbar (Konvention:
-# tf_pd_knz_<N> <-> fct_pd_knz_<N>.parquet, tools/compare_data.py).
-# Objekte ohne Referenz werden uebersprungen, nicht als Fehler gewertet --
-# G3 prueft nur, was tatsaechlich pruefbar ist.
+# Nur Objekte mit passender Referenzdatei sind pruefbar (Konvention seit
+# Session 10: <rolle>__<exakter-modellname>.parquet, <rolle> aus derselben
+# Vokabular wie dbt/macros/schema_for.sql -- deckt jede Pipeline-Ebene ab,
+# nicht nur Kennzahl-Fakten, sobald dafuer eine Referenzdatei vorliegt,
+# s. tools/compare_data.py). Objekte ohne Referenz werden uebersprungen,
+# nicht als Fehler gewertet -- G3 prueft nur, was tatsaechlich pruefbar ist.
 #
 # Aufruf: bash tools/compare.sh <YYYYMM> [MODEL ...]
 # Ohne MODEL-Liste: alle dbt-Modelle mit vorhandener Referenzdatei.
@@ -24,8 +26,9 @@ PY="${PY:-.venv/bin/python3}"
 REF_DIR="learning/pd/referenz/$MONAT"
 fail=0
 
-# Modellliste: explizit uebergeben, sonst alle mit Referenzdatei (Konvention
-# tf_pd_knz_<N> -> fct_pd_knz_<N>.parquet).
+# Modellliste: explizit uebergeben, sonst alle mit Referenzdatei
+# (<rolle>__<modell>.parquet -- Rolle direkt aus dem Dateinamen, kein
+# Praefix-Raten mehr noetig).
 if [ "$#" -gt 0 ]; then
     MODELS=("$@")
 else
@@ -33,9 +36,10 @@ else
     if [ -d "$REF_DIR" ]; then
         while IFS= read -r -d '' f; do
             name="$(basename "$f" .parquet)"
-            model="${name/fct_/tf_}"
-            [ -f "dbt/models"/*/"${model}.sql" ] 2>/dev/null && MODELS+=("$model")
-        done < <(find "$REF_DIR" -name "*.parquet" -print0)
+            role="${name%%__*}"
+            model="${name#*__}"
+            [ -f "dbt/models/${role}/${model}.sql" ] && MODELS+=("$model")
+        done < <(find "$REF_DIR" -name "*__*.parquet" -print0)
     fi
 fi
 
@@ -63,10 +67,18 @@ fi
 echo
 echo "=== G5: Idempotenz (zweimal laufen lassen, Hash vergleichen) ==="
 for m in "${MODELS[@]}"; do
-    h1="$("$PY" tools/compare_data.py --month "$MONAT" --model "$m" --hash-only 2>/dev/null)"
+    h1="$("$PY" tools/compare_data.py --month "$MONAT" --model "$m" --hash-only 2>/dev/null)"; rc1=$?
     ( cd dbt && dbt run --profiles-dir . --vars "{verarbeitungsmonat: \"$MONAT\"}" --select "$m" ) >/dev/null 2>&1
-    h2="$("$PY" tools/compare_data.py --month "$MONAT" --model "$m" --hash-only 2>/dev/null)"
-    if [ "$h1" != "$h2" ]; then
+    h2="$("$PY" tools/compare_data.py --month "$MONAT" --model "$m" --hash-only 2>/dev/null)"; rc2=$?
+    # Laufzeit-verifiziert (diese Session): ein fehlgeschlagener --hash-only-
+    # Aufruf (Tabelle existiert nicht, Exasol-Fehler) liefert leeren stdout
+    # UND leeren stdout beim zweiten Aufruf -- "" == "" wurde vorher
+    # faelschlich als "Hash stabil" gewertet. Exit-Code beider Aufrufe daher
+    # explizit pruefen, nicht nur den String-Vergleich.
+    if [ "$rc1" -ne 0 ] || [ "$rc2" -ne 0 ] || [ -z "$h1" ] || [ -z "$h2" ]; then
+        echo "E G5-IDEMPOTENZ model=$m hash-only fehlgeschlagen (rc1=$rc1 rc2=$rc2) -- kein Vergleich moeglich, nicht als OK werten"
+        fail=1
+    elif [ "$h1" != "$h2" ]; then
         echo "E G5-IDEMPOTENZ model=$m hash_lauf1=$h1 hash_lauf2=$h2"
         fail=1
     else
