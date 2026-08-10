@@ -2,12 +2,16 @@
 name: g3-row-permutation
 scope: generic
 description: >
-  Laufzeit-verifiziertes Signatur-Muster aus KNZ 709 (Session 10):
-  G3-Zeilen-Hash-Abweichung besteht fort, obwohl Rowcount stimmt und
-  keine/alle Spalten einzeln als abweichend gemeldet werden. Die
-  moeglichen Ursachen unten sind generisches SQL-Wissen, KEIN
-  bestaetigter Befund fuer ein konkretes Objekt -- selbst pruefen,
-  nicht blind uebernehmen.
+  Hypothetisches Signatur-Muster, NICHT laufzeit-verifiziert -- der
+  KNZ-709-Fall, der diesen Skill urspruenglich ausgeloest hat, stellte
+  sich bei genauerer Pruefung als etwas anderes heraus: ein Bug in
+  compare_data.py's col_hash() selbst (XOR-Aggregation war paritaets-
+  statt mengensensitiv, inzwischen gefixt) plus fehlende Dimensions-
+  Validierungslogik im Modell. Keine echte Zeilen-Permutation gefunden.
+  Skill bleibt fuer einen moeglichen KUENFTIGEN echten Fall stehen --
+  seit dem Fix ist das Signaturmuster unten ein deutlich verlaesslicheres
+  Signal als vorher, aber weiterhin ohne einen einzigen bestaetigten
+  Fall in diesem Projekt.
 ---
 
 # Skill: G3-Zeilen-Hash-Abweichung trotz stimmender Spalten
@@ -18,7 +22,18 @@ description: >
 - `abweichende_spalten` fehlt in der Ausgabe (jede Spalte stimmt fuer
   sich als Multiset), UND trotzdem bleibt die Abweichung bestehen.
 
-Das heisst: alle Werte sind vorhanden und in der richtigen Menge, aber
+**Bevor du das als Permutation einordnest: pruefe zuerst, ob es einfach
+ein Wertefehler auf einzelnen Zeilen ist, keine Paarung zwischen zwei
+Zeilen.** Genau das war der KNZ-709-Fall (s.o.) -- `abweichende_spalten`
+war nur leer, weil `col_hash()` einen echten Bug hatte, nicht weil die
+Spalten wirklich stimmten. Der Bug ist seit `tools/compare_data.py`
+Commit "col_hash() von XOR- auf Multiset-Vergleich umgestellt" behoben --
+`abweichende_spalten` ist jetzt wieder verlaesslich. Erst wenn `make
+compare` NACH diesem Fix weiterhin `zeilen_hash_abweichung` ohne jede
+`abweichende_spalten`-Zeile meldet, ist eine echte Paarungsfehler-Diagnose
+(unten) ueberhaupt sinnvoll.
+
+Falls doch: alle Werte sind vorhanden und in der richtigen Menge, aber
 falsch **kombiniert** -- Spalte X aus Zeile A steht bei euch an Zeile B.
 Kein Wertefehler, ein Paarungsfehler. Der Vergleich sieht das nur als
 Gesamt-Hash-Differenz, weil er bewusst keine Referenzwerte offenlegt
