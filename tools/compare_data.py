@@ -27,6 +27,7 @@ import os
 import re
 import subprocess
 import sys
+from collections import Counter
 from decimal import Decimal
 
 import pandas as pd
@@ -116,15 +117,22 @@ def normalize_value(v) -> str:
     return str(v).strip()
 
 
-def col_hash(series: pd.Series) -> int:
-    """Ordnungsunabhaengiger Hash EINER Spalte (Multiset ihrer Werte) --
-    braucht keinen Join-Schluessel, deckt aber nur auf, DASS eine Spalte
-    abweicht, nicht WELCHE Zeile/WARUM (bewusst: Sichtbarkeit fuer Qwens
-    eigene Recherche, keine vorgefertigte Diagnose)."""
-    agg = 0
-    for v in series:
-        agg ^= int(hashlib.md5(normalize_value(v).encode("utf-8")).hexdigest(), 16)
-    return agg
+def col_hash(series: pd.Series) -> frozenset:
+    """Ordnungsunabhaengiger Multiset-Vergleich EINER Spalte -- braucht
+    keinen Join-Schluessel, deckt aber nur auf, DASS eine Spalte abweicht,
+    nicht WELCHE Zeile/WARUM (bewusst: Sichtbarkeit fuer Qwens eigene
+    Recherche, keine vorgefertigte Diagnose).
+
+    Frueher (bis Session 10): XOR-Aggregation von MD5-Hashes -- laufzeit-
+    verifiziert paritaetsblind, nicht mengensensitiv (hash(v) XOR hash(v)
+    = 0 unabhaengig davon, ob v 2x oder 200x vorkommt). Hat bei KNZ 709
+    zwei reale Wertabweichungen mit gerader Vorkommenshaeufigkeit
+    systematisch verschluckt (bps_bild_abs: 74x NULL statt 55999;
+    pd_rks_id: 92x 52002 statt 52003 -- beide von der alten Implementierung
+    als "Spalte stimmt ueberein" gemeldet, s. Diskussion in dieser Session).
+    Jetzt: echter Multiset-Vergleich (Counter) -- zaehlt Vorkommen statt
+    nur Paritaet."""
+    return frozenset(Counter(normalize_value(v) for v in series).items())
 
 
 def row_hash(df: pd.DataFrame) -> int:
