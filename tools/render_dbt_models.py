@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Materialisiert ALLE Klasse-A-Objekte aus reports/triage.json als dbt-
 Modelle -- vollstaendig generisch: kein Dateiname, kein Tabellenname im
-Code. ref() vs. source() wird mechanisch entschieden (Quelle == Ziel eines
-anderen Klasse-A-Objekts? -> ref(), sonst -> source()), Schema-Rolle und
-Modellname werden aus dem table_key abgeleitet (Konvention:
+Code. ref() vs. source() wird mechanisch entschieden: Klasse-A-Ziel (aus
+Lineage-Daten, wird in diesem Lauf garantiert geschrieben) -> ref(); sonst
+existiert bereits ein dbt-Modell auf der Platte fuer diese Tabelle
+(Klasse-B/C-Migration, Existenzpruefung -- lineage.jsonl allein reicht
+nicht, s. render_select_body()) -> ebenfalls ref(); sonst -> source().
+Schema-Rolle und Modellname werden aus dem table_key abgeleitet (Konvention:
 skills/schema/monatsschema-konvention.md, docs/systemkontext.md B.4).
 
 Das ist die Grenze zur Fachlogik: was hier NICHT passiert, ist irgendeine
@@ -90,7 +93,7 @@ def parse_all_statements(path: Path):
 
 
 def render_select_body(
-    stmt: exp.Select, ambient_db: str | None, ref_map: dict, month_range_vars: dict
+    stmt: exp.Select, ambient_db: str | None, ref_map: dict, month_range_vars: dict, out_dir: Path
 ) -> tuple[str, set]:
     """Gibt (SQL mit ref()/source()/Makro-Aufrufen, Menge externer (db,table)-Quellen) zurueck."""
     select = stmt.copy()
@@ -107,11 +110,25 @@ def render_select_body(
 
     for t in list(select.find_all(exp.Table)):
         key = table_key(t, ambient_db)
+        db, tbl = split_db_table(key)
+        role, short_db = role_and_db(db)
         if key in ref_map:
             jinja = "{{ ref('%s') }}" % ref_map[key]
+        elif role and (out_dir / role / f"{tbl.lower()}.sql").exists():
+            # Kein Klasse-A-Ziel (sonst waere es in ref_map), aber ein echtes
+            # dbt-Modell liegt bereits auf Platte -- eine Klasse-B/C-Migration
+            # (Qwen). ref_map allein reicht hier nicht: solche Ziele tauchen in
+            # reports/lineage.jsonl nie als "target" auf, wenn das Original-
+            # Skript sie per Cursor/WHILE-Schleife befuellt statt per simplem
+            # SELECT INTO (extract.py erkennt dann keinen Target-Eintrag) --
+            # die Existenzpruefung auf der Platte ist das einzig verlaessliche
+            # Signal dafuer. dbt kennt unsere Klassen-Einteilung nicht:
+            # source() wuerde die Modell-Abhaengigkeit aus dem DAG nehmen und
+            # eine Build-Reihenfolge-Race ermoeglichen [laufzeit-verifiziert:
+            # tt_deltant_pd_fc_org/tf_pd_fa gegen tf_deltant_pd_fc_k/
+            # tf_deltant_pd_fa_k, diese Session].
+            jinja = "{{ ref('%s') }}" % tbl.lower()
         else:
-            db, tbl = split_db_table(key)
-            role, short_db = role_and_db(db)
             if not short_db:
                 raise SystemExit(
                     f"Quelle {key!r} nicht aufloesbar (kein bekanntes Schema-Praefix) "
@@ -214,7 +231,7 @@ def main() -> int:
         raw = path.read_text(encoding="utf-8", errors="replace")
         rewritten, _ = rewrite_placeholders(raw)
         month_range_vars = find_month_range_vars(rewritten)
-        body, externals = render_select_body(stmt, ambient_db, ref_map, month_range_vars)
+        body, externals = render_select_body(stmt, ambient_db, ref_map, month_range_vars, out_dir)
         all_external |= externals
 
         role_dir = out_dir / role
@@ -259,6 +276,10 @@ def main() -> int:
             role, short_db = role_and_db(db)
             if not short_db:
                 continue  # kein bekanntes Schema-Praefix (z.B. sys.databases) -- kein echtes Objekt, still ignoriert
+            if role and (out_dir / role / f"{tbl.lower()}.sql").exists():
+                continue  # echtes dbt-Modell auf der Platte -- render_select_body() nutzt bereits ref(),
+                # nicht source() dafuer (dieselbe Luecke wie dort: all_targets_ever allein sieht
+                # Klasse-B/C-Ziele nicht, die per Cursor/WHILE statt SELECT INTO befuellt werden)
             sources_by_db[short_db].add(tbl)
 
     lines = ["version: 2", "", "sources:"]

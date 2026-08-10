@@ -41,26 +41,86 @@
           "dbt/**": "allow",
           "memory/rules/**": "allow"
         },
-        // Session 9 (docs/session9-multifile-loading.md): "ask" allein
-        // blockierte Qwens eigenen Feedback-Loop vollstaendig im
-        // nicht-interaktiven `opencode run` -- "ask" kann dort nie
-        // beantwortet werden, jeder bash-Aufruf (auch die laut AGENTS.md
-        // ausdruecklich erlaubten make gate/make compare) wurde automatisch
-        // abgelehnt. Deshalb genau diese zwei lesenden Kommandos freigegeben,
-        // alles andere bleibt "ask" (in headless-Laeufen effektiv "deny") --
-        // insbesondere der bekannte Bypass-Weg (z.B. "echo x > tools/y",
-        // s. "Weiterhin offen" in CLAUDE.md) bleibt gesperrt.
-        // Laufzeit-verifiziert (docs/session9-multifile-loading.md): bei
-        // Pipes (z.B. "make gate MONAT=... | tail -10") prueft opencode
-        // offenbar jeden Teilbefehl einzeln -- "make gate MONAT=*" allein
-        // liess den Aufruf trotzdem an "*": "ask" scheitern, weil "tail -10"
-        // nicht erlaubt war. Deshalb zusaetzlich die ueblichen lesenden
-        // Anzeige-Befehle freigegeben (kein neues Risiko: Lesezugriff ist
-        // fuer Qwen ueber das read-Tool ohnehin schon uneingeschraenkt).
+        // Deliberat konsolidierte Policy (Session 10 -- "stabilisiere die
+        // bash-Oberflaeche einmal richtig, statt weiter Einzelfaelle zu
+        // patchen"), ersetzt eine Serie reaktiver Session-9-Patches.
+        // Zwei Saeulen:
+        //   1. Genau das, was AGENTS.md Qwen ausdruecklich erlaubt:
+        //      make gate/make compare, und lesendes Exasol-Debugging
+        //      (nur ueber tools/exapump_select.sh, s. dort -- roher
+        //      "exapump *" bleibt gesperrt, siehe Session-5-Vorfall).
+        //   2. Uebliche rein lesende Anzeige-/Inspektionsbefehle, damit
+        //      Qwen die Ausgabe von (1) tatsaechlich verwenden kann
+        //      (Pipes/Compound-Befehle werden von opencode teilbefehl-
+        //      weise geprueft, s.u.) -- kein neues Risiko, Lesezugriff
+        //      hat Qwen ueber das read-Tool ohnehin schon uneingeschraenkt.
+        // "ask" ist in nicht-interaktivem `opencode run` gleichbedeutend
+        // mit "deny" (kann dort nie beantwortet werden, s. docs/
+        // session9-multifile-loading.md) -- alles ausserhalb dieser Liste
+        // ist also effektiv gesperrt, nicht nur "erschwert".
+        //
+        // KRITISCH, laufzeit-verifiziert (Session 10): jede der obigen
+        // Regeln allein wuerde Ausgabe-Umleitung durchlassen, weil
+        // opencodes Pattern-Matching den Befehlstext nur als String
+        // vergleicht, Shell-Semantik (">" = schreibt in eine Datei) NICHT
+        // versteht -- "echo X > tools/gate.sh" matcht "echo *" genauso wie
+        // "echo X" ohne Umleitung. Damit waere jede einzelne Allow-Regel
+        // ein direkter Bypass der edit-Sperre gewesen (exakt das in
+        // CLAUDE.md als theoretisch offen dokumentierte Risiko -- hier
+        // real reproduziert: echo-Redirect auf eine Testdatei lief
+        // klaglos durch, kein "ask", kein Fehler).
+        //
+        // Erster Fix-Versuch (eine einzige Deny-Regel "*>*" ganz am Ende)
+        // war zu grob: blockierte auch "2>&1" (stderr-nach-stdout-
+        // Umleitung, kein Datei-Schreibzugriff, extrem gebraeuchliches
+        // Idiom -- Qwen nutzt es staendig fuer "make gate ... 2>&1 |
+        // tail"). Laufzeit-verifiziert kaputt: derselbe Testlauf, der
+        // vorher durchlief, brach danach genau an diesem Muster ab.
+        // Stattdessen gezielt nur Umleitungen auf tatsaechlich
+        // geschuetzte Pfade sperren (deckungsgleich mit der edit-Sperre
+        // oben) -- "N>&M"-Idiome wie "2>&1" enthalten keinen dieser
+        // Pfad-Strings und bleiben erlaubt. Nicht adversarial-wasserdicht
+        // (z.B. Quoting-Tricks wie "t''ools/y" wuerden durchrutschen) --
+        // das ist bewusst kein Ziel (s. docs/adr/0001-deterministik-first.md,
+        // dieselbe Abwaegung wie bei der bestehenden edit-Bypass-Luecke):
+        // schuetzt gegen normales Werkzeug-Verhalten, nicht gegen einen
+        // absichtlich evasiven Agenten.
+        // TEST (docs/session10-rejection-mechanism.md): Catch-all von
+        // "ask" auf "deny" umgestellt. "ask" ist im Headless-Betrieb
+        // ohnehin faktisch immer eine Ablehnung (nichts kann es
+        // beantworten) -- das AENDERT NICHTS am Ergebnis einzelner
+        // Tool-Aufrufe. Laufzeit-verifiziert (30/30 Transkripte dieser
+        // Session): eine "ask"-Ablehnung beendet den gesamten Agenten-
+        // Loop sofort, ohne dass das Modell je einen weiteren Turn
+        // bekommt -- eine explizite "deny"-Ablehnung (1 beobachteter
+        // Fall) liess die Session dagegen normal weiterlaufen (64
+        // weitere Ereignisse). Hypothese: "deny" liefert dem Modell
+        // ein regulaeres Tool-Fehlerergebnis zurueck, "ask" bricht im
+        // Headless-Modus stattdessen den ganzen Prozess ab. Noch nicht
+        // breit bestaetigt (n=1 fuer den Vergleichsfall) -- deshalb
+        // hier als Test markiert, nicht als endgueltige Entscheidung.
         "bash": {
-          "*": "ask",
+          "*": "deny",
           "make gate MONAT=*": "allow",
           "make compare MONAT=*": "allow",
+          "tools/exapump_select.sh *": "allow",
+          // Git add/commit fuer Qwens eigenen Abschluss-Schritt (AGENTS.md:
+          // "Ein Objekt = ein Branch = ein Commit ... dein Modell trotzdem
+          // committen"). Bisher fehlte JEDES git-Pattern in dieser Liste --
+          // ueber die gesamte Historie dieser Datei (git log -p geprueft) --
+          // Qwen konnte technisch nie selbst committen. Laufzeit-verifiziert
+          // (KNZ-709-Runde, diese Session): 4 aufeinanderfolgende, identisch
+          // abgelehnte "git add -f ... && git commit"-Versuche, Aenderung
+          // blieb uncommitted im Working Tree liegen. Scope deckungsgleich
+          // mit den einzigen fuer Qwen schreibbaren Pfaden in "edit" oben
+          // (dbt/**, ledger.jsonl, memory/rules/**) -- "git add -A"/"git
+          // add ." o.ae. matcht keines der folgenden Patterns, faellt auf
+          // den bash-Catch-all "deny" zurueck.
+          "git add -f dbt/models/*": "allow",
+          "git add ledger.jsonl": "allow",
+          "git add -f memory/rules/*": "allow",
+          "git commit -m *": "allow",
+          "git add -f dbt/models/* && git commit -m *": "allow",
           "tail *": "allow",
           "head *": "allow",
           "cat *": "allow",
@@ -68,8 +128,26 @@
           "wc *": "allow",
           "ls *": "allow",
           "find *": "allow",
-          "echo *": "allow"
-        }
+          "echo *": "allow",
+          "*>*tools/*": "deny",
+          "*>*source_references/*": "deny",
+          "*>*skills/*": "deny",
+          "*>*docs/*": "deny",
+          "*>*reports/*": "deny",
+          "*>*AGENTS.md*": "deny",
+          "*>*CLAUDE.md*": "deny",
+          "*>*opencode.jsonc*": "deny"
+        },
+        // Laufzeit-verifiziert (docs/session10-rejection-mechanism.md,
+        // KNZ-709-Runde 14): Zugriffe ausserhalb des Projektverzeichnisses
+        // (z.B. /tmp/gate_*.log) laufen ueber eine EIGENE Permission-
+        // Kategorie, nicht ueber "bash" -- der ask->deny-Fix dort deckt
+        // das nicht ab, default bleibt "ask" (dieselbe fatale Wirkung im
+        // Headless-Betrieb). Passt zu tools/gate.sh's eigener Absicht
+        // ("Rohlogs nicht in Agenten-Kontext geben") -- explizit auf
+        // deny gesetzt statt implizit ueber den unbeantwortbaren
+        // ask-Default zu scheitern.
+        "external_directory": "deny"
       }
     }
   }
