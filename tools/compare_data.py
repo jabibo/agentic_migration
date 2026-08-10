@@ -32,14 +32,8 @@ from decimal import Decimal
 
 import pandas as pd
 
-SCHEMA_PREFIX = "sqlserver__bps__dbo__"
-# Deckungsgleich mit dbt/macros/schema_for.sql (tools/render_scaffold.sh) --
-# bei Aenderung dort auch hier nachziehen.
-ROLE_TO_DB = {
-    "data": "con_pd_data", "dwh": "con_pd_dwh", "calc": "con_pd_calc",
-    "fact": "con_pd_fact", "knz": "con_pd_knz", "strg": "con_strg",
-    "dim": "con_bio_dim",
-}
+from schema_roles import ROLE_TO_DB, SCHEMA_PREFIX  # noqa: E402
+
 NULL_SENTINEL = "\x00NULL\x00"
 # Erkennt SQL-Server- (Leerzeichen) und Exasol-JSON- ("T") Datums-/
 # Zeitstempel-Trennzeichen gleichermassen -- s. normalize_value().

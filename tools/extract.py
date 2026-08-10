@@ -30,6 +30,8 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ErrorLevel
 
+from schema_roles import ROLE_TO_DB, SCHEMA_PREFIX  # noqa: E402
+
 # --------------------------------------------------------------------------
 # P0 -- Platzhalter-Rewrite
 # --------------------------------------------------------------------------
@@ -41,17 +43,21 @@ from sqlglot.errors import ErrorLevel
 
 PLACEHOLDER_RE = re.compile(r"/\*<([A-Za-z0-9_.]+)>\*/.*?/\*<\1>\*/", re.DOTALL)
 
+# Platzhalter-Name (aus dem Quell-SQL-Template) -> DB-Name. Die Werte kommen
+# aus schema_roles.py (einzige Quelle der Wahrheit) -- nur die Zuordnung
+# "welcher Platzhalter-Token bedeutet welche Rolle" ist hier lokal, weil sie
+# vom Templating-Format der Quellskripte abhaengt (bei einem neuen Prozess
+# ggf. andere Token-Namen, aber dieselben Rollen/DB-Namen aus der Config).
 DB_PLACEHOLDER_SCHEMA = {
-    "DBNAME_PD_FACT": "con_pd_fact",
-    "DBNAME_PD_KNZ": "con_pd_knz",
-    "DBNAME_PD_CALC": "con_pd_calc",
-    "DBNAME_PD_DATA": "con_pd_data",
-    "DBNAME_PD_DWH": "con_pd_dwh",
-    "DBNAME_PD_DWH_Vormonat": "con_pd_dwh__vormonat",  # dbt: source ueber month_add()-Makro, kein ref()
-    "DBNAME_CON_DIM": "con_bio_dim",
-    "DBNAME_CON_STRG": "con_strg",
+    "DBNAME_PD_FACT": ROLE_TO_DB["fact"],
+    "DBNAME_PD_KNZ": ROLE_TO_DB["knz"],
+    "DBNAME_PD_CALC": ROLE_TO_DB["calc"],
+    "DBNAME_PD_DATA": ROLE_TO_DB["data"],
+    "DBNAME_PD_DWH": ROLE_TO_DB["dwh"],
+    "DBNAME_PD_DWH_Vormonat": ROLE_TO_DB["dwh"] + "__vormonat",  # dbt: source ueber month_add()-Makro, kein ref()
+    "DBNAME_CON_DIM": ROLE_TO_DB["dim"],
+    "DBNAME_CON_STRG": ROLE_TO_DB["strg"],
 }
-SCHEMA_PREFIX = "sqlserver__bps__dbo__"
 
 
 def rewrite_placeholders(sql: str) -> tuple[str, list[str]]:

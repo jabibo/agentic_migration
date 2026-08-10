@@ -1,0 +1,12 @@
+{
+  "schema_prefix": "sqlserver__bps__dbo__",
+  "roles": {
+    "data": "con_pd_data",
+    "dwh": "con_pd_dwh",
+    "calc": "con_pd_calc",
+    "fact": "con_pd_fact",
+    "knz": "con_pd_knz",
+    "strg": "con_strg",
+    "dim": "con_bio_dim"
+  }
+}

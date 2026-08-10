@@ -40,13 +40,9 @@ import sqlglot  # noqa: E402
 from sqlglot import exp  # noqa: E402
 from sqlglot.errors import ErrorLevel  # noqa: E402
 
+from schema_roles import ROLE_BY_DB, SCHEMA_PREFIX  # noqa: E402
+
 SOURCE_DIR = Path("source_references/pd/pd_skripte")
-SCHEMA_PREFIX = "sqlserver__bps__dbo__"
-ROLE_BY_DB = {
-    "con_pd_data": "data", "con_pd_dwh": "dwh", "con_pd_calc": "calc",
-    "con_pd_fact": "fact", "con_pd_knz": "knz", "con_strg": "strg",
-    "con_bio_dim": "dim",
-}
 
 
 def split_db_table(key: str) -> tuple[str | None, str]:

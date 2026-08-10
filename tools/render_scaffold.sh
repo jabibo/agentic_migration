@@ -63,20 +63,44 @@ cat > dbt/macros/generate_schema_name.sql <<'EOF'
 EOF
 
 # Jinja-Aequivalent zu tools/lib/monatsschema.sh:schema_for() -- dieselbe
-# Konvention, zwei Laufzeiten (bash fuer Laden, dbt fuer Modelle). Bei
-# Aenderung beide synchron halten.
-cat > dbt/macros/schema_for.sql <<'EOF'
+# Konvention, zwei Laufzeiten (bash fuer Laden, dbt fuer Modelle). Praefix
+# und Rollen-Dict werden aus tools/schema_roles.json gelesen und hier nur
+# eingebettet (kein DB-Roundtrip zur dbt-Compile-Zeit) -- einzige textuelle
+# Quelle fuer beide Laufzeiten UND fuer compare_data.py/render_dbt_models.py/
+# extract.py (s. tools/schema_roles.py). Vorher: sechs unabhaengige Kopien,
+# "bei Aenderung synchron halten" war reine Konvention, nicht erzwungen.
+ROLES_JINJA="$(python3 -c "
+import json
+data = json.loads(open('tools/schema_roles.json').read())
+items = ', '.join(f'\"{k}\": \"{v}\"' for k, v in data['roles'].items())
+print('{' + items + '}')
+")"
+SCHEMA_PREFIX_VAL="$(python3 -c "import json; print(json.load(open('tools/schema_roles.json'))['schema_prefix'])")"
+
+cat > dbt/macros/schema_for.sql <<EOF
 {% macro schema_for(role) %}
-  {%- set prefix = "sqlserver__bps__dbo__" -%}
-  {%- set roles = {
-      "data": "con_pd_data", "dwh": "con_pd_dwh", "calc": "con_pd_calc",
-      "fact": "con_pd_fact", "knz": "con_pd_knz", "strg": "con_strg",
-      "dim": "con_bio_dim"
-  } -%}
+  {%- set prefix = "$SCHEMA_PREFIX_VAL" -%}
+  {%- set roles = $ROLES_JINJA -%}
   {%- if role not in roles -%}
     {{ exceptions.raise_compiler_error("schema_for: unbekannte rolle '" ~ role ~ "'") }}
   {%- endif -%}
   {{ return(prefix ~ roles[role] ~ "_" ~ var("verarbeitungsmonat")) }}
+{% endmacro %}
+EOF
+
+# Wie schema_for(), aber fuer den Vormonat -- vorher eine separate, force-
+# committete Handkopie (dbt/macros/prev_month_schema.sql, aus der KNZ-INIT-
+# Migration Session 6), jetzt Teil des deterministischen Scaffolds wie
+# schema_for.sql selbst. Reine Infrastruktur (kein Fachwissen), gehoert
+# hierher, nicht als committete Ausnahme.
+cat > dbt/macros/prev_month_schema.sql <<EOF
+{% macro prev_month_schema(role) %}
+  {%- set prefix = "$SCHEMA_PREFIX_VAL" -%}
+  {%- set roles = $ROLES_JINJA -%}
+  {%- if role not in roles -%}
+    {{ exceptions.raise_compiler_error("prev_month_schema: unbekannte Rolle '" ~ role ~ "'") }}
+  {%- endif -%}
+  {{ return(prefix ~ roles[role] ~ "_" ~ month_add(var("verarbeitungsmonat"), "-1")) }}
 {% endmacro %}
 EOF
 
@@ -243,4 +267,4 @@ cat > dbt/macros/delta_multifile.sql <<'EOF'
 {% endmacro %}
 EOF
 
-echo "dbt/ Scaffold geschrieben: dbt_project.yml, profiles.yml, macros/{generate_schema_name,schema_for,month_add,kennzahl_zeitraum,delta_multifile}.sql"
+echo "dbt/ Scaffold geschrieben: dbt_project.yml, profiles.yml, macros/{generate_schema_name,schema_for,prev_month_schema,month_add,kennzahl_zeitraum,delta_multifile}.sql"
