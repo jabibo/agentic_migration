@@ -38,21 +38,45 @@ raten — dann Parameter aus der Quelldatei ergänzen (Zeilen 90–97 dort),
 nicht selbst schätzen.
 
 ## `MON_ID` in der Ausgabe — Verarbeitungsmonat, nicht `pd_abschl_dat`
-[laufzeit-verifiziert, `tf_pd_knz_705`, `docs/session8-architektur-review.md`]:
-das Original-T-SQL berechnet `MON_ID` aus `pd_abschl_dat`
-(`CAST(LEFT(CONVERT(VARCHAR(8), fc.pd_abschl_dat, 112), 6) AS INT)`) —
-bei einem Ein-Monats-Fenster meist unsichtbar (Abschlussdatum liegt
-ohnehin im aktuellen Monat), bei einem **Mehrmonats**-Fenster (s. o.)
-weicht das von der Referenz ab. Referenz erwartet `MON_ID` = aktueller
-Verarbeitungsmonat für **alle** Zeilen, unabhängig vom tatsächlichen
-`pd_abschl_dat`. Fix: `{{ var('verarbeitungsmonat') }} AS MON_ID` statt
-aus `pd_abschl_dat` ableiten.
+**Zwei widersprüchliche Korrekturen an diesem Abschnitt in derselben
+Session (2026-08-10) — die zweite (diese) ist die durch einen direkten
+Row-für-Row-Vergleich abgesicherte.** Kurzfassung: `{{
+var('verarbeitungsmonat') }} AS MON_ID` ist richtig. Die Zwischenversion
+dieses Abschnitts, die stattdessen eine Pro-Zeile-Ableitung aus
+`pd_abschl_dat` forderte, war selbst ein Fehlschluss — nicht nur eine
+unbewiesene Behauptung wie die ursprüngliche Fassung.
 
-**Betrifft potenziell 6 weitere Objekte** mit identischem CONVERT-Muster
-für `[mon_id]`: 701, 702, 703, 706, 708, 709 (`rg`-bestätigt). Nicht
-automatisch für alle übernehmen — erst gegen G3 prüfen, das Muster kann
-je Objekt anders wirken (711 nutzt z. B. `pd_zeit_von` statt
-`pd_abschl_dat`, andere Spalte).
+**Beweis** (`tools/compare_data.py`s `live_df()` gegen
+`learning/pd/referenz/202312/fact__tf_pd_knz_705.parquet`, identische
+`pd_auftr_id`-Menge auf beiden Seiten bestätigt, 20/20): mit `MON_ID`
+testweise auf Pro-Zeile-Ableitung aus `pd_abschl_dat` umgestellt, zeigt
+das Live-Ergebnis 3 verschiedene Werte (`202310`: 1x, `202311`: 6x,
+`202312`: 13x) für dieselben 20 Aufträge, für die die Referenz
+**einheitlich** `202312` zeigt — inklusive der 7 Aufträge, deren eigenes
+`pd_abschl_dat` nachweislich in einem früheren Monat liegt. Das
+widerlegt Pro-Zeile-Ableitung direkt, nicht nur durch Abwesenheit von
+Gegenbeweisen.
+
+**Warum das trotz des T-SQL-Quelltexts (`CAST(LEFT(CONVERT(VARCHAR(8),
+fc.pd_abschl_dat, 112), 6) AS INT) [mon_id]`, pro Zeile aus dem
+Business-Datum) so ist, bleibt ungeklärt** — plausibelste Hypothese:
+`MON_ID` wird in der echten Produktion einmalig beim Bestandseintritt
+eines Datensatzes vergeben und danach nie neu berechnet (klassische
+Bestandsfortschreibung: neue Zeilen bekommen den aktuellen
+Verarbeitungsmonat, alte Zeilen behalten ihren ursprünglichen Wert für
+immer) — das erklärt sowohl die Konstante innerhalb eines Monats als
+auch die Akkumulation über Monate (`202312`→`202401` addiert neue,
+mit `202401` markierte Zeilen, ohne die alten `202312`-Zeilen
+anzufassen) ohne Widerspruch. Der Testkorpus enthält vermutlich
+Datensätze mit `pd_abschl_dat` aus Vormonaten, die in der echten
+Produktion so nicht in einem einzelnen Monats-Delta vorkämen (Timing-
+Artefakt des Testkorpus, nicht der Fachlogik) — nicht verifiziert, nur
+die plausibelste Erklärung für den Widerspruch zum T-SQL-Quelltext.
+
+**Konsequenz:** 705, 706, 709 (`{{ var('verarbeitungsmonat') }} AS
+MON_ID`) sind bei `MONAT=202312` korrekt **grün, weil sie richtig sind**
+— nicht trotz eines verdeckten Bugs. Nicht erneut auf Pro-Zeile-Ableitung
+umstellen, ohne diesen Beweis zu widerlegen.
 
 ## Related
 `skills/transpile/exasol-dialect-gotchas.md` · `docs/session7-compare.md` ·
