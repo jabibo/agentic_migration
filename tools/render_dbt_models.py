@@ -221,6 +221,26 @@ def main() -> int:
             ref_map[row["target"]] = model_name
 
     out_dir = Path("dbt/models")
+
+    # Qwen-Override (Session 14): Klasse A ist per Default deterministisch
+    # und wird bei jedem Lauf komplett neu gerendert -- das macht jeden
+    # manuellen dbt/-Fix an einer Klasse-A-Datei wirkungslos, sobald der
+    # naechste 'make gate' (render-a) laeuft, s. docs/session13-bestand-
+    # 711-fixes.md Nachtrag Session 14 (tf_pd_fa.sql, Commit 3701ba8 wurde
+    # so vom naechsten Render-Lauf stillschweigend verworfen). Datei ist
+    # fuer Qwen schreibbar (dbt/**, nicht in opencode.jsonc's Deny-Liste),
+    # eine Zeile = ein Modellname (ohne .sql), '#'-Kommentare erlaubt.
+    # Gelistete Modelle werden hier uebersprungen, nicht neu geschrieben --
+    # Qwens eigener committeter Dateistand bleibt stehen. Enge, sichtbare
+    # Ausnahme, keine stille Aufweichung von "Klasse A ist deterministisch".
+    owned_path = out_dir / "qwen_owned.txt"
+    qwen_owned = set()
+    if owned_path.exists():
+        for line in owned_path.read_text(encoding="utf-8").splitlines():
+            line = line.split("#", 1)[0].strip().lower()
+            if line:
+                qwen_owned.add(line)
+
     all_external = set()
     written = []
     for row in lineage:
@@ -264,6 +284,9 @@ def main() -> int:
             "{{ config(schema=schema_for('%s')) }}\n\n" % role
         )
         out_path = role_dir / f"{model_name}.sql"
+        if model_name in qwen_owned and out_path.exists():
+            print(f"uebersprungen (Qwen-Override, s. {owned_path}): {out_path}")
+            continue
         out_path.write_text(header + body + "\n", encoding="utf-8")
         written.append(out_path)
 
