@@ -17,6 +17,31 @@ war (Bauherr-Diagnose/-Content-Fix statt reines Gate-Feedback), ist das
 explizit markiert — diese Runden sind für die Bewertung von Qwens
 eigener Autonomie nicht zählbar, nur ihre Kosten sind real angefallen.
 
+**Kritischer Nachtrag (2026-08-10):** `opencode.jsonc` enthielt über die
+gesamte Historie der Datei (`git log -p` gegen jede Revision geprüft)
+**kein einziges `git`-Pattern** in der `bash`-Permission-Liste. Qwen
+konnte technisch nie selbst `git add`/`git commit` ausführen — jeder
+Versuch fiel auf den Bash-Catch-all `deny` zurück. Laufzeit-verifiziert
+an einer KNZ-709-Runde dieser Session: vier identische, nacheinander
+abgelehnte `git add -f ... && git commit`-Versuche, Änderung blieb
+uncommitted im Working Tree liegen.
+
+Konsequenz: **jeder `Qwen:`-präfigierte Commit in der Historie bis zu
+diesem Zeitpunkt — einschließlich aller in der Tabelle unten gezählten
+Objekte — wurde nicht von Qwens eigenem Agent-Loop erzeugt**, sondern
+muss vom Bauherr stellvertretend committet worden sein (vermutlich in
+früheren, inzwischen zusammengefassten Sessions, nicht mehr im Detail
+rekonstruierbar). Die Spalte „Autonomie unaided" unten bewertet
+inhaltliche Eigenständigkeit (kein Bauherr-Diagnose-/Content-Fix) —
+**nicht** den Commit-Schritt selbst; „Ja"/„Teilweise" darf also nicht
+als „Qwen hat den Vorgang bis zum Commit selbst abgeschlossen"
+gelesen werden. Fix (selbes Datum): `opencode.jsonc` um eng gescopte
+`git add -f dbt/models/*`/`git add ledger.jsonl`/`git add -f
+memory/rules/*`/`git commit -m *`-Patterns ergänzt — deckungsgleich mit
+den einzigen für Qwen schreibbaren Pfaden. Objekte/Runden **vor** diesem
+Fix sind vom Fund betroffen; alles danach kann den Commit-Schritt
+erstmals echt (unaided) testen.
+
 ## Objekttabelle
 
 | Objekt | Klasse | Runden (davon belastet) | Kosten gesamt | Erster Versuch G0/G1 sauber? | Finaler G0/G1-Status | Finaler G2-G5-Status | Autonomie unaided |
