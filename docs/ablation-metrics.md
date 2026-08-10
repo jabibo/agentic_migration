@@ -51,18 +51,18 @@ erstmals echt (unaided) testen.
 | tf_deltant_pd_fa/azt (Multi-File-Adoption) | C (Infra-Adoption) | 6 (2) | ~$0,14 | Nein | **nie grün** | nie erreicht | **Nein** — 0/6, endgültig gescheitert (Session 9), 2 Runden davon durch Bauherr-Diagnose/`--auto`-Eingriff belastet |
 | PD KNZ 706.KNZ 706.sql | B | 4 (0) + 1 (Session 12) | $0,10 + $0,321 | Ja (im ersten echten Schreibversuch, Runde 3 — Runden 1-2 scheiterten an Harness-Permissions, nicht an Qwens Modell) | G0 13/13, G1 13/13 | **G0-G3 + G5 alle grün** (Session 12: fehlende Spalte `pd_auftr_id` ergänzt, UPDATE-Normalisierung als `LEFT JOIN`, eigene `memory/rules/pd_normalisierung_left_join.md` geschrieben) | **Ja** — verifiziert autonomer Commit (`b25d7a2`) |
 | PD KNZ 701.KNZ 701.sql | B | 3 (0) + 1 (Session 11) | $0,18 + $0,013 | Nein (korrelierte NOT-IN-in-CASE, von Exasol nicht unterstützt) | G0 15/15, G1 15/15 (nach Selbstkorrektur) | **G0-G3 + G5 alle grün** (Session 11: Tippfehler `pd_traeger_id`, 1 Runde) | **Ja** — erstes Objekt mit verifiziertem Selbst-Commit (`f490655`) |
-| PD KNZ 702.KNZ 702.sql | B | 5 (0) | $0,084 | Nein (ungültiger `config(depends_on=[...])`, brach kompletten Compile) | G0 13/13 grün, **G1 702 selbst weiterhin rot** (Case-Folding, 2 Runden ohne Fortschritt) | nicht erreicht | Teilweise — noch nicht in Session 11/12 erneut versucht |
+| PD KNZ 702.KNZ 702.sql | B | 5 (0) + 1 (Session 12) | $0,084 + $0,033 | Nein (ungültiger `config(depends_on=[...])`, brach kompletten Compile) | G0 13/13 grün, G1 702 selbst zuvor weiterhin rot (Case-Folding, 2 Runden ohne Fortschritt vor Session 11/12) | **G0-G3 + G5 alle grün** (Session 12: 5× Case-Mismatch in `con_pd_knz`-JOINs, `pd_auftr_id` ergänzt, `MON_ID` korrekt auf Konstante umgestellt, **17 erfundene Platzhalter-Spalten** `0 AS sm_XX_days`/`bg_XX_days`/`GLZ_NETTO_in_Wochen` entfernt — Bauherr-seitig gegen die Referenz verifiziert: die hat tatsächlich nur 15 Spalten, kein Zufallstreffer) | **Ja** — verifiziert autonomer Commit (`9492330`) |
 | PD KNZ 708.KNZ 708.sql | B | 4 (0) + 2 (Session 12) | $0,18 + $0,025 (Stillstand, 11 Min. ohne Aktion) + $0,040 (Erfolg) | **Ja** (First-Pass) | G0/G1 grün zunächst, brach beim eigenen G3-Fix-Versuch erneut (Quotier-Bug, 2 Runden ohne Fortschritt vor Session 11/12) | **G0-G3 + G5 alle grün** (Session 12, Versuch 2: Case-Mismatch `Anzahl`/`"anzahl"` **und** ein zweiter, vorher verdeckter Bug — correlated IN-Predicate in SELECT, von Exasol nicht unterstützt — beide selbst gefunden und mit demselben LEFT-JOIN-Muster wie 706/709 gelöst) | **Ja** — verifiziert autonomer Commit (`66b5a29`) |
 | PD KNZ 709.KNZ 709.sql | B | 8 (2, verworfen) + Folgerunden (Session 11) | ~$0,24 + $0,652 | Nein (`&`-Operator von Anfang an im Modell) | G0 14/14, G1 14/14 (Runde 6) | G3: 3/4 vormals fehlende Dimensions-Checks korrekt, `pd_rks_id` offen (vermutlich Datenvintage, kein Modell-Bug) | Teilweise — erster autonomer Commit (`c359554`), inhaltlich 3/4 gelöst |
 
 ## Kennzahlen
 
-- **Autonomierate (vollständig G0-G5 grün, unaided):** 4/8 (50 %) —
-  705, 701, 706, 708. Wichtiger Unterschied (s. Nachtrag oben): 705s
+- **Autonomierate (vollständig G0-G5 grün, unaided):** 5/8 (62,5 %) —
+  705, 701, 706, 708, 702. Wichtiger Unterschied (s. Nachtrag oben): 705s
   Commits sind vermutlich Bauherr-vermittelt (Permission-Lücke existierte
-  damals bereits), 701/706/708 sind die ersten drei Objekte mit
-  *verifiziert* eigenständigem Commit-Schritt — die einzigen drei der
-  vier Zahlen, die die Definition von "unaided" vollständig erfüllen,
+  damals bereits), 701/706/708/702 sind die ersten vier Objekte mit
+  *verifiziert* eigenständigem Commit-Schritt — die einzigen vier der
+  fünf Zahlen, die die Definition von "unaided" vollständig erfüllen,
   nicht nur inhaltlich.
 - **First-Pass-Yield (G0/G1 sauber im allerersten echten,
   unbelasteten Versuch):** 2/7 zählbare Klasse-B/C-Erstversuche
@@ -84,10 +84,12 @@ erstmals echt (unaided) testen.
   Nutzerzustimmung) über die Schwelle hinaus versucht. Kein einziges
   Objekt hat sich selbst per `ledger.jsonl` als `blocked` gemeldet
   (s. `docs/session10-batch-run.md`, offene Frage).
-- **Datenäquivalenz-Quote (G2+G3 exakt erreicht):** 4/8 (50 %) — 705,
-  701, 706, 708. 709 hat G3 erreicht und zu 3/4 gelöst, zählt aber wegen
-  der offenen `pd_rks_id`-Abweichung nicht als exakt. 3 von 8 (702,
-  Bestand-Serie, Multi-File-Adoption) haben G2/G3 nie erreicht.
+- **Datenäquivalenz-Quote (G2+G3 exakt erreicht):** 5/8 (62,5 %) — 705,
+  701, 706, 708, 702. 709 hat G3 erreicht und zu 3/4 gelöst, zählt aber
+  wegen der offenen `pd_rks_id`-Abweichung nicht als exakt. Nur noch 2 von
+  8 (Bestand-Serie, Multi-File-Adoption) haben G2/G3 nie erreicht — beide
+  strukturell blockiert (Cursor-/Multi-File-Ladepfad), nicht durch
+  Inhaltsfehler.
 - **Token-Kosten/Objekt:** stark gestreut ($0,084 bis $2,03), Median
   ≈ $0,18. Der teuerste Fall (705, $2,03) war der allererste Lauf des
   Projekts ohne jede Vorerfahrung/Regelgedächtnis — spätere Objekte
