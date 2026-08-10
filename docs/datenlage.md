@@ -15,7 +15,7 @@ Session 3 (Gates) folgt.
 | `data/pd/*.csv` | Delta-Importe: `dbo__bi_delta_{azt,bl,fa,fc,ls}_<YYYYMM>_<timestamp>.csv`, 3 Monate (202312, 202401, 202402) | Quelle für **DATA**-Schicht (`con_pd_data.bi_delta_*`) |
 | `learning/pd/dimensions/*.parquet` | ~29 Dimensions-Snapshots (`dbo__vd_as_*`, `dbo__td_ueb_kalender_tag`) | **DIM**-Schicht (`con_bio_dim`), „als gegeben angesehen" |
 | `learning/pd/referenz/<YYYYMM>/fct_pd_knz_*.parquet` | Erwartete Fakt-Ergebnisse je Kennzahl, 4 Monate (202312–202403) | **Ground Truth für G3** (Datenäquivalenz) |
-| `learning/pd/pd_skripte/`, `learning/pd/ddl/` | Duplikat von `source_references/pd/` | keine Handlung — bereits im Repo |
+| `learning/pd/pd_skripte/`, `learning/pd/ddl/` | war inhaltsgleiches Duplikat von `source_references/pd/` | **gelöscht** (Session 14) — technisch für Qwen schreibbar (`opencode.jsonc` deckte `learning/` nirgends ab, anders als das geschützte Original), kein bekannter Ausnutzungsfall, aber unnötige Lücke; Pfade zusätzlich in `opencode.jsonc`s Deny-Liste, falls je wieder angelegt |
 | `learning/pd/pd_skripte_excluded/` | 6 Skripte, **nie** in `source_dir` | siehe 1.3; 4 davon (Kalenderfunktionen, OLAP-Views) sind Referenzquellen für Session 8, nicht Migrationsziele |
 | `learning/pd/pd_star_schema.mmd` | Ziel-Sternschema: 8 Fakten × 14 Dimensionen | Referenz für Modellierung |
 | `learning/pd/project_exasol-vormonat-bestand.md` | Bekannte Lücke im alten `dbt/` | siehe 1.4 |

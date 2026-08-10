@@ -30,6 +30,15 @@
         "edit": {
           "*": "allow",
           "source_references/**": "deny",
+          // learning/pd/pd_skripte/ und learning/pd/ddl/ sind ein inhaltsgleiches Duplikat
+          // von source_references/pd/ (s. docs/datenlage.md) -- war bisher
+          // NICHT gedeckt (Default "*": "allow" griff), obwohl das Original
+          // in source_references/ laengst gesperrt ist. Gefunden bei einer
+          // Nutzerfrage, kein bekannter Ausnutzungsfall. Duplikat selbst
+          // inzwischen geloescht (s. Commit), Deny bleibt als Schutz gegen
+          // versehentliche Wiederanlage bestehen.
+          "learning/pd/pd_skripte/**": "deny",
+          "learning/pd/ddl/**": "deny",
           "tools/**": "deny",
           "skills/**": "deny",
           "docs/**": "deny",
@@ -131,6 +140,8 @@
           "echo *": "allow",
           "*>*tools/*": "deny",
           "*>*source_references/*": "deny",
+          "*>*learning/pd/pd_skripte/*": "deny",
+          "*>*learning/pd/ddl/*": "deny",
           "*>*skills/*": "deny",
           "*>*docs/*": "deny",
           "*>*reports/*": "deny",
