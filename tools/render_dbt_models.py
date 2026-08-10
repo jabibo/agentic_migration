@@ -104,6 +104,28 @@ def render_select_body(
     while isinstance(into_node, exp.Union):
         into_node = into_node.this
     into_node.set("into", None)
+
+    # Kalenderdimension-JOINs (=<alias>.tag_dat) vergleichen ein Kalender-
+    # datum (immer Mitternacht) gegen die Gegenseite -- die ist ueber den
+    # CSV-Import haeufig ein voller TIMESTAMP mit Uhrzeitanteil, ein exakter
+    # Vergleich matcht dadurch praktisch nie [laufzeit-verifiziert:
+    # tf_pd_fa.sql, pd_dat_eing = kal_eing.tag_dat, G3 zeigte pd_anz_eingae
+    # durchgaengig 0 statt der von der Referenz erwarteten Mischung]. Das
+    # Original-T-SQL hat dieselbe naive Gleichheit ohne Trunkierung, aber
+    # T-SQL DATE-Spalten fuehren dort nie einen Zeitanteil -- Cross-System-
+    # Typkorrektur, keine erfundene Fachlogik: der Vergleich selbst bleibt
+    # unveraendert, nur auf Datumsebene statt Zeitstempelebene. Generisch
+    # ueber die Spalte "tag_dat" (die einzige Kalendertages-Dimension im
+    # Projekt), kein Objekt-/Tabellenname im Code.
+    for eq in select.find_all(exp.EQ):
+        left, right = eq.this, eq.expression
+        left_is_tag_dat = isinstance(left, exp.Column) and (left.name or "").lower() == "tag_dat"
+        right_is_tag_dat = isinstance(right, exp.Column) and (right.name or "").lower() == "tag_dat"
+        if right_is_tag_dat and not left_is_tag_dat:
+            eq.set("this", exp.Cast(this=left.copy(), to=exp.DataType.build("DATE")))
+        elif left_is_tag_dat and not right_is_tag_dat:
+            eq.set("expression", exp.Cast(this=right.copy(), to=exp.DataType.build("DATE")))
+
     placeholders = {}
     external_sources = set()
     counter = [0]
