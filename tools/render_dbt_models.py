@@ -97,7 +97,13 @@ def render_select_body(
 ) -> tuple[str, set]:
     """Gibt (SQL mit ref()/source()/Makro-Aufrufen, Menge externer (db,table)-Quellen) zurueck."""
     select = stmt.copy()
-    select.set("into", None)
+    # Bei UNION/UNION ALL traegt nur der linkeste SELECT die INTO-Klausel
+    # (s. extract.py:statement_lineage) -- dort, nicht auf dem Union-Knoten
+    # selbst, muss sie entfernt werden. No-op fuer einfache SELECT INTO.
+    into_node = select
+    while isinstance(into_node, exp.Union):
+        into_node = into_node.this
+    into_node.set("into", None)
     placeholders = {}
     external_sources = set()
     counter = [0]
@@ -220,8 +226,14 @@ def main() -> int:
         path = SOURCE_DIR / row["file"]
         found = None
         for stmt, ambient_db in parse_all_statements(path):
-            if isinstance(stmt, exp.Select) and stmt.args.get("into"):
-                into_table = stmt.args["into"].this
+            # UNION/UNION ALL: INTO sitzt nur auf dem linkesten SELECT (s.
+            # render_select_body) -- stmt selbst bleibt der volle Union-Baum,
+            # damit beide Seiten mitgerendert werden.
+            into_stmt = stmt
+            while isinstance(into_stmt, exp.Union):
+                into_stmt = into_stmt.this
+            if isinstance(into_stmt, exp.Select) and into_stmt.args.get("into"):
+                into_table = into_stmt.args["into"].this
                 if isinstance(into_table, exp.Table) and table_key(into_table, ambient_db) == target_key:
                     found = (stmt, ambient_db)
                     break

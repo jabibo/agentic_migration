@@ -140,6 +140,12 @@ def split_statements(batch: str) -> list[str]:
     paren_depth = 0
     block_depth = 0
     after_update = False  # naechstes SET ist die UPDATE-Klausel, nicht eigenstaendig
+    after_set_op = False  # naechstes SELECT ist UNION/UNION ALL/INTERSECT/EXCEPT-
+    # Fortsetzung derselben Anweisung, keine neue Statement-Grenze
+    # [laufzeit-verifiziert: "SELECT ... INTO x FROM a UNION ALL SELECT * FROM
+    # b" wurde vorher an der zweiten SELECT-Zeile in zwei Chunks zerschnitten
+    # -- sqlglot bekam dann nur die linke Haelfte, der rechte UNION-Zweig ging
+    # komplett verloren (PD KNZ 711.KNZ 711.sql, vorP51/nachP51-Zusammenfuehrung)].
     for m in _TOKEN_RE.finditer(batch):
         tok = m.group(0)
         if tok == "(":
@@ -157,8 +163,14 @@ def split_statements(batch: str) -> list[str]:
         if upper == "END":
             block_depth = max(0, block_depth - 1)
             continue
+        if upper in ("UNION", "INTERSECT", "EXCEPT"):
+            after_set_op = True
+            continue
         is_stmt_kw = upper in STMT_KEYWORDS or (upper == "SET" and not after_update)
         if paren_depth == 0 and block_depth == 0 and is_stmt_kw:
+            if upper == "SELECT" and after_set_op:
+                after_set_op = False
+                continue
             line_start = batch.rfind("\n", 0, m.start()) + 1
             if batch[line_start:m.start()].strip() == "":
                 cuts.append(m.start())
@@ -220,8 +232,15 @@ def table_key(t: exp.Table, ambient_db: str | None = None) -> str:
 def statement_lineage(stmt: exp.Expression, ambient_db: str | None = None) -> dict:
     kind = type(stmt).__name__
     target = None
-    if isinstance(stmt, exp.Select) and stmt.args.get("into"):
-        into_table = stmt.args["into"].this
+    # UNION/UNION ALL traegt die INTO-Klausel nur auf dem linkesten SELECT
+    # (T-SQL-Syntax: "SELECT ... INTO x FROM a UNION ALL SELECT ... FROM b") --
+    # ohne diesen Walk bleibt target=None fuer jedes "SELECT INTO ... UNION
+    # ALL ..."-Statement, unabhaengig davon wie oft verschachtelt.
+    into_stmt = stmt
+    while isinstance(into_stmt, exp.Union):
+        into_stmt = into_stmt.this
+    if isinstance(into_stmt, exp.Select) and into_stmt.args.get("into"):
+        into_table = into_stmt.args["into"].this
         if isinstance(into_table, exp.Table):
             target = table_key(into_table, ambient_db)
         kind = "SelectInto"

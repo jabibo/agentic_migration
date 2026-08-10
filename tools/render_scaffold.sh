@@ -81,14 +81,20 @@ cat > dbt/macros/schema_for.sql <<'EOF'
 EOF
 
 # Ersetzt dbo.uf_ueb_kalender_MonatAdd(yyyymm, n) -- reine Kalenderarithmetik
-# (Monatsverschiebung), kein Fachwissen. [Annahme, laufzeit-verifiziert nur
-# gegen G0/G1-Syntax, NICHT gegen G3-Datenaequivalenz -- Semantik aus dem
-# Funktionsnamen abgeleitet, nicht aus einer Quelle]. Analog zu
-# without_macros/agentic's month_add()-Makro (docs/systemkontext.md B.6),
-# unabhaengig neu geschrieben (dortiger Quellcode liegt uns nicht vor).
+# (Monatsverschiebung), kein Fachwissen. Analog zu without_macros/agentic's
+# month_add()-Makro (docs/systemkontext.md B.6), unabhaengig neu geschrieben
+# (dortiger Quellcode liegt uns nicht vor).
+#
+# Ergebnis als INT, nicht als roher TO_CHAR-String: jede andere mon_id-
+# artige Spalte im Projekt ist INT (Kalender-Dimensionen, alle Kennzahl-
+# Objekte) -- ohne diesen CAST kollidiert das Makro-Ergebnis in UNIONs mit
+# INT-getypten Geschwister-Spalten (Exasol toleriert das anders als T-SQL
+# nicht implizit) [laufzeit-verifiziert: tf_pd_knz_711, VARCHAR(6) vs.
+# DECIMAL(18,0) bei UNION ALL vorP51/nachP51 -- G0/G1 UND jetzt auch G3
+# bestaetigt, nicht mehr nur Annahme].
 cat > dbt/macros/month_add.sql <<'EOF'
 {% macro month_add(yyyymm_expr, n) %}
-  TO_CHAR(ADD_MONTHS(TO_DATE({{ yyyymm_expr }} || '01', 'YYYYMMDD'), {{ n }}), 'YYYYMM')
+  CAST(TO_CHAR(ADD_MONTHS(TO_DATE({{ yyyymm_expr }} || '01', 'YYYYMMDD'), {{ n }}), 'YYYYMM') AS INT)
 {% endmacro %}
 EOF
 

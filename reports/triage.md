@@ -4,7 +4,7 @@ Objekte: 15 | A=3 (20%) | B=6 (40%) | C=5 (33%) | excluded=1 (6%)
 
 | Datei | Klasse | Statements | Grund | Transpile-Fehler |
 |---|---|---|---|---|
-| PD KNZ 711.KNZ 711.sql | A | 12 | 2 ziel(e), je 1 schreibendes statement | 0 |
+| PD KNZ 711.KNZ 711.sql | A | 11 | 3 ziel(e), je 1 schreibendes statement | 0 |
 | PD KNZ INIT.NEO_org_Zuordnung.sql | A | 10 | 2 ziel(e), je 1 schreibendes statement | 0 |
 | PD KNZ INIT.unplausibler Fallabschluss.sql | A | 7 | 1 ziel(e), je 1 schreibendes statement | 0 |
 | PD KNZ 701.KNZ 701.sql | B | 16 | ziel mit 4 schreibenden statements | 0 |

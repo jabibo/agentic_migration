@@ -83,8 +83,8 @@
   {
     "file": "PD KNZ 711.KNZ 711.sql",
     "class": "A",
-    "reason": "2 ziel(e), je 1 schreibendes statement",
-    "statements": 12,
+    "reason": "3 ziel(e), je 1 schreibendes statement",
+    "statements": 11,
     "parse_errors": [],
     "unknown_placeholders": [],
     "transpile_failures": 0
