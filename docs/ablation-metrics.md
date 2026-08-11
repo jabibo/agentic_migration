@@ -53,18 +53,23 @@ erstmals echt (unaided) testen.
 | PD KNZ 701.KNZ 701.sql | B | 3 (0) + 1 (Session 11) | $0,18 + $0,013 | Nein (korrelierte NOT-IN-in-CASE, von Exasol nicht unterstützt) | G0 15/15, G1 15/15 (nach Selbstkorrektur) | **G0-G3 + G5 alle grün** (Session 11: Tippfehler `pd_traeger_id`, 1 Runde) | **Ja** — erstes Objekt mit verifiziertem Selbst-Commit (`f490655`) |
 | PD KNZ 702.KNZ 702.sql | B | 5 (0) + 1 (Session 12) | $0,084 + $0,033 | Nein (ungültiger `config(depends_on=[...])`, brach kompletten Compile) | G0 13/13 grün, G1 702 selbst zuvor weiterhin rot (Case-Folding, 2 Runden ohne Fortschritt vor Session 11/12) | **G0-G3 + G5 alle grün** (Session 12: 5× Case-Mismatch in `con_pd_knz`-JOINs, `pd_auftr_id` ergänzt, `MON_ID` korrekt auf Konstante umgestellt, **17 erfundene Platzhalter-Spalten** `0 AS sm_XX_days`/`bg_XX_days`/`GLZ_NETTO_in_Wochen` entfernt — Bauherr-seitig gegen die Referenz verifiziert: die hat tatsächlich nur 15 Spalten, kein Zufallstreffer) | **Ja** — verifiziert autonomer Commit (`9492330`) |
 | PD KNZ 708.KNZ 708.sql | B | 4 (0) + 2 (Session 12) | $0,18 + $0,025 (Stillstand, 11 Min. ohne Aktion) + $0,040 (Erfolg) | **Ja** (First-Pass) | G0/G1 grün zunächst, brach beim eigenen G3-Fix-Versuch erneut (Quotier-Bug, 2 Runden ohne Fortschritt vor Session 11/12) | **G0-G3 + G5 alle grün** (Session 12, Versuch 2: Case-Mismatch `Anzahl`/`"anzahl"` **und** ein zweiter, vorher verdeckter Bug — correlated IN-Predicate in SELECT, von Exasol nicht unterstützt — beide selbst gefunden und mit demselben LEFT-JOIN-Muster wie 706/709 gelöst) | **Ja** — verifiziert autonomer Commit (`66b5a29`) |
-| PD KNZ 709.KNZ 709.sql | B | 8 (2, verworfen) + Folgerunden (Session 11) | ~$0,24 + $0,652 | Nein (`&`-Operator von Anfang an im Modell) | G0 14/14, G1 14/14 (Runde 6) | G3: 20/22 Spalten korrekt, `pd_abschl_art`/`pd_rks_id` offen — **Ursache ungeklärt** (Session 14: "vermutlich Datenvintage" widerlegt; die 52002→52003-Remap-Regel selbst rendert und läuft korrekt, aber 92 Zeilen landen live im `99999`-Sentinel statt im von der Referenz erwarteten `52003` — Fehler liegt vermutlich im `NOT IN`-Dimensionscheck oder der geladenen Testdimension, nicht in der Remap-Regel; nicht weiter untersucht) | Teilweise — erster autonomer Commit (`c359554`), inhaltlich 3/4 gelöst |
+| PD KNZ 709.KNZ 709.sql | B | 8 (2, verworfen) + Folgerunden (Session 11) + 1 (Session 14) | ~$0,24 + $0,652 + gering | Nein (`&`-Operator von Anfang an im Modell) | G0 14/14, G1 14/14 (Runde 6) | **G0-G5 alle grün** (Session 14: `pd_abschl_art`/`pd_rks_id`-Rest gelöst — `tt_pd_knz_709.sql` referenzierte fälschlich die rohe `tt_deltant_pd_fc_org` statt `tf_pd_fc`, dessen Wert-Konsolidierung/-Override daher wirkungslos blieb; Fund erst möglich, nachdem die Fachnotiz zu `tf_pd_fc` den Remap selbst als korrekt ausschloss und die Suche eine Ebene höher lenkte, s. `docs/session14-fachnotiz-blindtest.md`) | **Ja** — verifiziert autonomer Commit (`2486398`) |
 
 ## Kennzahlen
 
-- **Autonomierate (vollständig G0-G5 grün, unaided):** 5/8 (62,5 %) —
-  705, 701, 706, 708, 702. Bestand-Serie (fc/fa/azt) seit Session 14 aus
-  dieser Zahl entfernt: der Session-13-"Vollerfolg" beruhte auf einem
+- **Autonomierate (vollständig G0-G5 grün, unaided):** 6/8 (75 %) —
+  705, 701, 706, 708, 702, 709. Bestand-Serie (fc/fa/azt) seit Session 14
+  aus dieser Zahl entfernt: der Session-13-"Vollerfolg" beruhte auf einem
   zurückgenommenen Bauherr-Content-Fix, `tf_pd_knz_711` zeigt aktuell
-  wieder reale G3-Abweichungen (s. Datenäquivalenz-Quote unten). Von den
-  verbleibenden fünf sind 705s Commit vermutlich Bauherr-vermittelt
-  (Permission-Lücke existierte damals bereits), 701/706/708/702 sind die
-  einzigen vier Objekte mit *verifiziert* eigenständigem Commit-Schritt.
+  wieder reale G3-Abweichungen (s. Datenäquivalenz-Quote unten). 709 kam
+  in Session 14 mit Hilfe einer Fachnotiz (s. `docs/session14-
+  fachnotiz-blindtest.md`) hinzu — die Notiz gab keine Lösung vor,
+  schloss aber einen falschen Verdacht (die Remap-Regel selbst) aus und
+  lenkte die Suche eine Ebene höher, wo Qwen den echten Fehler
+  eigenständig fand. Von den sechs grünen Objekten sind 705s Commit
+  vermutlich Bauherr-vermittelt (Permission-Lücke existierte damals
+  bereits), 701/706/708/702/709 sind die fünf Objekte mit *verifiziert*
+  eigenständigem Commit-Schritt.
 - **First-Pass-Yield (G0/G1 sauber im allerersten echten,
   unbelasteten Versuch):** 2/7 zählbare Klasse-B/C-Erstversuche
   (706 einmal es tatsächlich zu einem Schreibversuch kam, 708) ≈ 29 %.
@@ -85,15 +90,15 @@ erstmals echt (unaided) testen.
   Nutzerzustimmung) über die Schwelle hinaus versucht. Kein einziges
   Objekt hat sich selbst per `ledger.jsonl` als `blocked` gemeldet
   (s. `docs/session10-batch-run.md`, offene Frage).
-- **Datenäquivalenz-Quote (G2+G3 exakt erreicht):** 5/8 (62,5 %) — 705,
-  701, 706, 708, 702. Bestand-Serie zaehlt seit Session 14 NICHT mehr
+- **Datenäquivalenz-Quote (G2+G3 exakt erreicht):** 6/8 (75 %) — 705,
+  701, 706, 708, 702, 709. Bestand-Serie zaehlt seit Session 14 NICHT mehr
   mit: der vermeintliche fc/fa-Vollerfolg aus Session 13 beruhte auf
   einem Bauherr-Content-Fix (Kalenderdimension-CAST), der als
   methodischer Fehler zurückgenommen wurde — `tf_pd_knz_711` zeigt
   aktuell wieder zwei reale, ungelöste G3-Abweichungen
   (`mon_id`, `pd_anz_eingae`), s. `docs/session13-bestand-711-fixes.md`
-  Nachtrag Session 14. 709 hat G3 erreicht und zu 3/4 gelöst, zählt aber
-  wegen der offenen `pd_rks_id`-Abweichung nicht als exakt. Multi-File-
+  Nachtrag Session 14. 709 ist seit Session 14 vollständig exakt
+  (`pd_rks_id`/`pd_abschl_art` gelöst, s. Objekttabelle oben). Multi-File-
   Adoption (fa/azt) bleibt ebenfalls offen — G1 inzwischen grün
   (Qwen-Fix `c9c97c0`), G2/G3 aber jetzt aktiv wieder rot statt vorher
   "nie erreicht".
@@ -122,8 +127,10 @@ erstmals echt (unaided) testen.
   vollständigem Erfolg (Stand vor Session 11/12). **Nach den
   Harness-Fixes (col_hash-Bug, source()/ref()-Race, G5-Falsch-Positiv,
   vor allem die Commit-Permission-Lücke) sieht das Bild deutlich anders
-  aus:** 701, 706, 708 kamen jeweils in 1-2 Folgerunden zum vollständigen,
-  selbst committeten Erfolg; 709 zu 3/4. Das relativiert die frühere
+  aus:** 701, 706, 708, 702 kamen jeweils in 1-2 Folgerunden zum
+  vollständigen, selbst committeten Erfolg; 709 brauchte länger (Session
+  11 zu 3/4, der Rest erst Session 14 mit Hilfe einer Fachnotiz), ist
+  aber inzwischen ebenfalls vollständig. Das relativiert die frühere
   Diagnose "Feedback-Loop läuft, konvergiert aber selten" erheblich —
   ein relevanter Teil der schlechten Konvergenz war die Harness selbst
   (Qwen konnte gefundene, korrekte Fixes nie committen; das Gate gab bei
@@ -140,8 +147,8 @@ erstmals echt (unaided) testen.
   wurde folglich stellvertretend vom Bauherr committet, nicht von Qwens
   eigenem Agent-Loop. Das bedeutet: die *historische* Autonomierate von
   1/8 war vermutlich nie eine reine Autonomiemessung, sondern (teilweise)
-  eine Bauherr-vermittelte. Erst 701/706/708/709 in dieser Session sind
-  echte End-to-End-Autonomiebelege (inkl. Commit), gemessen unter
+  eine Bauherr-vermittelte. Erst 701/706/708/702/709 in dieser Session
+  sind echte End-to-End-Autonomiebelege (inkl. Commit), gemessen unter
   identischen Bedingungen.
 - **Setup C (persistentes Regelgedächtnis) ist mit diesen Daten noch
   nicht sauber testbar.** Die Stichprobe ist klein, und die drei
