@@ -191,3 +191,39 @@ benannt. **Konsequenz:** `skills/transpile/boilerplate-prozeduren.md`
 als Referenzliste angelegt — für Qwen, damit es diese Aufrufe beim
 Lesen eines neuen Quellskripts sofort als „ignorieren" erkennt, statt
 jedes Mal neu zu bewerten.
+
+## 5. Referenzdaten-Korrektur: `fact__tf_pd_knz_703.parquet` (Session 14)
+
+Bei der Erstmigration von KNZ 703 (nie zuvor angefasst) zeigte G2
+zunächst zwei fehlende Spalten: `pd_auftr_id`, `zeitart`. Beide kommen
+**nirgends** in `source_references/pd/pd_skripte/PD KNZ 703.KNZ
+703.sql` vor (`grep` über den kompletten Dateiinhalt, kein Treffer)
+und auch sonst in keinem Skript des Korpus — anders als bei früheren
+Referenzdaten-Verdachtsfällen dieser Session (der sich stets als
+eigener Tooling-Bug herausstellte, nicht als falsche Referenz) diesmal
+mit klarer Gegenprobe:
+
+- `zeitart` hat in der Referenz exakt drei Werte (`gez`=135,
+  `lpe`=113, `lap`=108 über 202312, Summe = Gesamtzeilenzahl 356) —
+  deckungsgleich mit den drei `UNION ALL`-Zweigen des Original-Skripts
+  (Long-Format-Pivot, s. Fachnotiz `PD KNZ 703.KNZ 703.md`). Sieht nach
+  einem beim Referenzdaten-Export angehängten Diskriminator aus, nicht
+  nach einer echten Skript-Ausgabespalte.
+- `pd_auftr_id` ist über `tf_pd_fc` grundsätzlich verfügbar (die Spalte
+  existiert dort), wird vom gegebenen KNZ-703-Skript aber nicht
+  ausgewählt — vermutlich ein beim Export mitgezogener Trace-Key.
+- Live-Zeilenzahlen (nach Behebung des eigentlichen Inhaltsfehlers,
+  s.u.) matchen exakt pro Zweig: 135/113/108 — bestätigt die
+  Diskriminator-Hypothese für `zeitart` zusätzlich empirisch.
+
+**Fix**: `PD_AUFTR_ID`/`ZEITART` aus allen vier
+`learning/pd/referenz/<YYYYMM>/fact__tf_pd_knz_703.parquet`-Dateien
+entfernt (202312 als Probe zuerst, dann 202401–403 nutzerseitig
+nachgezogen), Zeilenzahlen dabei unverändert (356/720/1069/1381).
+Originale vor der Änderung gesichert (nicht im Repo, `learning/` ist
+komplett `.gitignore`d). Damit zeigte G3 einen zweiten, davon
+unabhängigen echten Fehler (Qwens `mon_id` war zunächst pro Zeile aus
+`pd_abschl_dat` abgeleitet statt `{{ var('verarbeitungsmonat') }}` —
+exakt der in `skills/transpile/kennzahl-berichtszeitraum.md`
+dokumentierte Fall), nach dessen Behebung `tf_pd_knz_703` vollständig
+G0-G5 grün ist.
