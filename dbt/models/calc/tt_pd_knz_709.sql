@@ -13,7 +13,7 @@ SELECT
   fc."bps_bild_abs",
   fc."pd_rks_id",
   fc."pd_tae_durch"
-FROM {{ ref('tt_deltant_pd_fc_org') }} AS fc
+FROM {{ ref('tf_pd_fc') }} AS fc
 WHERE fc."pd_veranl_stl" <> 23006
   AND fc."pd_fehl_typ" = 0
   AND CAST(LEFT(TO_CHAR(fc."pd_abschl_dat", 'YYYYMMDD'), 6) AS INT) BETWEEN {{ knz_erster_monat(709) }} AND {{ knz_letzter_monat(709) }}
