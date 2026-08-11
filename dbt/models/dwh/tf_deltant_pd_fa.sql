@@ -17,6 +17,7 @@ SELECT
     "pd_asa_id",
     "pd_tkd_id",
     "pd_rks_a_id",
+    "mon_id",
     0 AS "pd_anz_eingae",
     0 AS "pd_anz_in_bear",
     CAST(SUBSTR(REPLACE(d.mfd_quelldatei, 'BI_DELTA_FA_', ''), 1, 4) || '-'
