@@ -37,10 +37,18 @@
       ableiten (REPLACE([tabelle], 'BI_DELTA_FA', '') o.ae.) -- ohne
       diese Spalte war die Ableitung dbt-seitig gar nicht abbildbar.
 
-      dedup: TRUE = ROW_NUMBER-Deduplizierung nach key_column (Standard,
-      fuer FC mit pd_auftr_id); FALSE = keine Deduplizierung, alle Zeilen
-      werden uebernommen (für FA/AZT, deren Original-T-SQL keine
-      zeilenweise Deduplizierung durchfuehrt). -#}
+      dedup: TRUE (Standard) = ROW_NUMBER-Deduplizierung nach key_column
+      (fuer FC mit pd_auftr_id); FALSE = keine Deduplizierung, alle
+      Zeilen werden uebernommen -- fuer FA/AZT, deren Original-T-SQL
+      keine zeilenweise Deduplizierung durchfuehrt (Qwen-Fund, Commit
+      c9c97c0, memory/rules/delta_union_dedup_fazt.md). Nachtraeglich
+      hier ins Scaffold-Template gezogen, nachdem eine render_scaffold.sh-
+      Neuausfuehrung Qwens Direktaenderung an der generierten Datei
+      stillschweigend zurueckgesetzt hatte (Session 14) -- derselbe
+      Klasse-Konflikt wie bei dbt/models/qwen_owned.txt, nur fuer
+      dbt/macros/ noch ungeloest; hier durch Aufnahme ins Template
+      geloest statt durch einen Override-Mechanismus, weil es sich um
+      eine generische Erweiterung (nicht objektspezifisch) handelt. -#}
   {%- set schema = schema_for('data') -%}
   {%- set tables = discover_delta_files(kuerzel) -%}
   {%- if execute and tables|length == 0 -%}

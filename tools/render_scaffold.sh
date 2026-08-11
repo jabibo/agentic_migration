@@ -220,7 +220,7 @@ cat > dbt/macros/delta_multifile.sql <<'EOF'
   {{ return(tables) }}
 {% endmacro %}
 
-{% macro delta_union_dedup(kuerzel, key_column) %}
+{% macro delta_union_dedup(kuerzel, key_column, dedup=true) %}
   {#- Hilfsspalten ohne fuehrenden Unterstrich: Exasol erlaubt bei
       unquotierten Identifiern kein "_"/"__" als erstes Zeichen
       (laufzeit-verifiziert, "expecting IDENTIFIER_PART_"). Praefix
@@ -238,7 +238,20 @@ cat > dbt/macros/delta_multifile.sql <<'EOF'
       loading.md, Runde 3) im Original-T-SQL bi_timestamp/bi_load_date
       NICHT aus einer Datenspalte, sondern aus dem Tabellen-/Dateinamen
       ableiten (REPLACE([tabelle], 'BI_DELTA_FA', '') o.ae.) -- ohne
-      diese Spalte war die Ableitung dbt-seitig gar nicht abbildbar. -#}
+      diese Spalte war die Ableitung dbt-seitig gar nicht abbildbar.
+
+      dedup: TRUE (Standard) = ROW_NUMBER-Deduplizierung nach key_column
+      (fuer FC mit pd_auftr_id); FALSE = keine Deduplizierung, alle
+      Zeilen werden uebernommen -- fuer FA/AZT, deren Original-T-SQL
+      keine zeilenweise Deduplizierung durchfuehrt (Qwen-Fund, Commit
+      c9c97c0, memory/rules/delta_union_dedup_fazt.md). Nachtraeglich
+      hier ins Scaffold-Template gezogen, nachdem eine render_scaffold.sh-
+      Neuausfuehrung Qwens Direktaenderung an der generierten Datei
+      stillschweigend zurueckgesetzt hatte (Session 14) -- derselbe
+      Klasse-Konflikt wie bei dbt/models/qwen_owned.txt, nur fuer
+      dbt/macros/ noch ungeloest; hier durch Aufnahme ins Template
+      geloest statt durch einen Override-Mechanismus, weil es sich um
+      eine generische Erweiterung (nicht objektspezifisch) handelt. -#}
   {%- set schema = schema_for('data') -%}
   {%- set tables = discover_delta_files(kuerzel) -%}
   {%- if execute and tables|length == 0 -%}
@@ -248,6 +261,7 @@ cat > dbt/macros/delta_multifile.sql <<'EOF'
         ~ " gefunden (Schema " ~ schema ~ "). Fehlt der Import "
         ~ "(tools/load_reference_data.sh)?") }}
   {%- endif -%}
+  {% if dedup %}
   (
     SELECT u.*
     FROM (
@@ -264,6 +278,15 @@ cat > dbt/macros/delta_multifile.sql <<'EOF'
     ) u
     WHERE u.mfd_rn = 1
   )
+  {% else %}
+  (
+    {% for t in tables %}
+    SELECT *, {{ loop.index }} AS mfd_quellreihenfolge, '{{ t }}' AS mfd_quelldatei
+    FROM {{ schema }}.{{ t }}
+    {% if not loop.last %}UNION ALL{% endif %}
+    {% endfor %}
+  )
+  {% endif %}
 {% endmacro %}
 EOF
 
