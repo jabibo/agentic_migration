@@ -1,7 +1,40 @@
 ---
-description: Vorbereitung des Setup-A/B/C-Ablationsvergleichs (CLAUDE.md-Tabelle) — Mechanismus, Objektauswahl, Ablaufprotokoll. Stand Session 15, noch kein Testlauf ausgeführt.
-status: vorbereitet, wartet auf Freigabe zum Start
+description: Vorbereitung des Setup-A/B/C-Ablationsvergleichs (CLAUDE.md-Tabelle) — Mechanismus, Objektauswahl, Ablaufprotokoll. Stand Session 15, bewusst nicht ausgeführt (Nutzerentscheidung, s. Abschluss-Vermerk).
+status: zurückgestellt — Mechanismus bleibt reproduzierbar liegen, keine Trials geplant
 ---
+
+## Abschluss-Vermerk (2026-08-12, Nutzerentscheidung)
+
+**Kein Trial wird ausgeführt.** Nutzereinschätzung, geteilt: der geplante
+Vergleich (3 Objekte × 2 neue Setups, je n=1 pro Zelle) hätte keine neuen
+belastbaren Aussagen mehr gebracht.
+
+- **Stichprobenproblem:** n=1 pro Zelle macht aus dem Trial dieselbe Art
+  Anekdote, die schon aus den 12 realen Migrationen vorliegt — First-
+  Pass-Yield ~29 %, Regelgedächtnis wirkt mindestens einmal konkret
+  nachweisbar (706 → 708, `pd_normalisierung_left_join.md`). Drei weitere
+  Einzelfälle erhöhen die Anekdotenzahl, nicht die statistische Kraft.
+- **Corpus ausgeschöpft:** 12/14 Objekte migriert (`docs/ablation-
+  metrics.md`, Corpus-Abschluss), die verbleibenden zwei sind strukturell
+  kein Migrationsziel. Die instruktivsten Funde dieses Projekts kamen
+  ohnehin selten aus „Qwen scheitert an SQL", sondern aus Harness-Bugs
+  und einem eigenen Bauherr-Methodikfehler — diese Ader ist weitgehend
+  ausgegraben.
+- **Die eigentlich interessante Setup-B-Frage ist durch die Fachnotiz-
+  Zeitklärung (s. `docs/ablation-metrics.md`, Nachtrag Session 15) bereits
+  indirekt beantwortet:** 4 von 7 verifiziert-autonomen Erfolgen (701,
+  706, 708, 702) entstanden komplett ohne Dokumentationshilfe, rein aus
+  Gate-Feedback-Loop — das ist im Kern schon ein Setup-B-Ergebnis aus den
+  historischen Daten, ohne dass dafür ein neuer Trial nötig war.
+- Einzig offene Restfrage (nicht verfolgt): ob Setup A (echt null Feedback,
+  ein Schuss) bei irgendeinem Objekt überhaupt zu G0/G1-sauberem Code
+  führt — dazu gibt es keinen Datenpunkt. Bewusst nicht getestet, da der
+  Erkenntnisgewinn für den Aufwand als zu gering eingeschätzt wurde.
+
+Der Mechanismus (`AGENTS_A.md`/`AGENTS_B.md`, `migrator_a`/`migrator_b`
+in `opencode.jsonc`, `tools/ablation_trial_setup.sh`) bleibt committet
+und reproduzierbar liegen, falls später doch Bedarf entsteht — er ist
+kein Aufwand im Ruhezustand.
 
 # Setup-A/B/C-Vergleich — Vorbereitung (Session 15)
 
