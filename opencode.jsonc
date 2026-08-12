@@ -7,7 +7,15 @@
   // Platzhalter unten NICHT ungeprueft verwenden.
   "model": "openrouter/qwen/qwen3.6-35b-a3b",
 
-  "instructions": ["AGENTS.md"],
+  // Kein globales "instructions" mehr (Session 15) -- stattdessen bekommt
+  // jeder Agent sein eigenes "prompt": "{file:./...}" (s.u.). Grund: die
+  // Interaktion zwischen globalem "instructions" und Agent-"prompt" ist
+  // opencode-seitig nicht dokumentiert (WebFetch auf opencode.ai/docs
+  // liefert dazu explizit keine Aussage) -- fuer den Setup-A/B/C-Vergleich
+  // (docs/setup-a-b-vergleich.md) muss migrator_a/migrator_b garantiert
+  // NICHT das volle AGENTS.md sehen (memory/rules/skills-Erwaehnung
+  // wuerde die isolierte Variable kontaminieren). Explizites "prompt" pro
+  // Agent ist unzweideutig, unabhaengig vom ungeklaerten Verhalten.
 
   // Bewusst KEIN "skills" Key: opencodes Skill-Tool scannt **/SKILL.md und
   // laesst das Modell autonom entscheiden, wann es triggert. Unsere
@@ -21,8 +29,9 @@
 
   "agent": {
     "migrator": {
-      "description": "Prüfling: migriert ein T-SQL-Objekt (Klasse B/C) 1:1 nach dbt-Exasol, geführt durch AGENTS.md.",
+      "description": "Prüfling: migriert ein T-SQL-Objekt (Klasse B/C) 1:1 nach dbt-Exasol, geführt durch AGENTS.md. Setup C im Ablationsvergleich (Gates + Regelgedächtnis) -- s. docs/setup-a-b-vergleich.md.",
       "mode": "primary",
+      "prompt": "{file:./AGENTS.md}",
       "permission": {
         // Harness-Schutz technisch durchgesetzt (nicht nur Konvention +
         // nachtraeglicher git-diff-Check, siehe docs/adr/0001-deterministik-first.md).
@@ -158,6 +167,103 @@
         // ("Rohlogs nicht in Agenten-Kontext geben") -- explizit auf
         // deny gesetzt statt implizit ueber den unbeantwortbaren
         // ask-Default zu scheitern.
+        "external_directory": "deny"
+      }
+    },
+
+    // Setup-A/B/C-Vergleich (Session 15, docs/setup-a-b-vergleich.md).
+    // migrator (oben) bleibt Setup C unveraendert. migrator_a/migrator_b
+    // sind reine Vergleichs-Agenten, NIE fuer reguläre Objektmigration --
+    // liegen in isolierten git-worktrees (tools/ablation_trial_setup.sh),
+    // nie auf main. Ausfuehrlich begruendet (welche Variable isoliert
+    // welche Setup-Stufe testet): docs/setup-a-b-vergleich.md.
+    "migrator_a": {
+      "description": "Ablationsvergleich Setup A (LLM only, ein Versuch, kein Gate, kein Regelgedaechtnis) -- s. docs/setup-a-b-vergleich.md.",
+      "mode": "primary",
+      "prompt": "{file:./AGENTS_A.md}",
+      "permission": {
+        "edit": {
+          "*": "allow",
+          "source_references/**": "deny",
+          "learning/pd/pd_skripte/**": "deny",
+          "learning/pd/ddl/**": "deny",
+          "tools/**": "deny",
+          "skills/**": "deny",
+          "docs/**": "deny",
+          "reports/**": "deny",
+          "ledger.jsonl": "deny",
+          "memory/rules/**": "deny",
+          "AGENTS.md": "deny",
+          "AGENTS_A.md": "deny",
+          "AGENTS_B.md": "deny",
+          "CLAUDE.md": "deny",
+          "opencode.jsonc": "deny",
+          "dbt/**": "allow"
+        },
+        // Kein Bash-Zugriff ueberhaupt -- das IST die Setup-A-Bedingung
+        // (kein Gate, keine Iteration, kein Exasol-Debugging). Bewusst
+        // kein Einzelfall-Allowlisting wie bei migrator/migrator_b.
+        "bash": { "*": "deny" },
+        "external_directory": "deny"
+      }
+    },
+    "migrator_b": {
+      "description": "Ablationsvergleich Setup B (Feedback-Loop/Gates, kein Regelgedaechtnis) -- s. docs/setup-a-b-vergleich.md.",
+      "mode": "primary",
+      "prompt": "{file:./AGENTS_B.md}",
+      "permission": {
+        "edit": {
+          "*": "allow",
+          "source_references/**": "deny",
+          "learning/pd/pd_skripte/**": "deny",
+          "learning/pd/ddl/**": "deny",
+          "tools/**": "deny",
+          "skills/**": "deny",
+          "docs/**": "deny",
+          "reports/**": "deny",
+          "ledger.jsonl": "allow",
+          // Kern-Unterschied zu migrator (Setup C): kein Regelgedaechtnis-
+          // Zugriff, weder lesen (Konvention, s. AGENTS_B.md) noch
+          // schreiben (hier technisch erzwungen).
+          "memory/rules/**": "deny",
+          "AGENTS.md": "deny",
+          "AGENTS_A.md": "deny",
+          "AGENTS_B.md": "deny",
+          "CLAUDE.md": "deny",
+          "opencode.jsonc": "deny",
+          "dbt/**": "allow"
+        },
+        "bash": {
+          "*": "deny",
+          "make gate MONAT=*": "allow",
+          "make compare MONAT=*": "allow",
+          "tools/exapump_select.sh *": "allow",
+          "git add -f dbt/models/*": "allow",
+          "git add ledger.jsonl": "allow",
+          "git commit -m *": "allow",
+          "git add -f dbt/models/* && git commit -m *": "allow",
+          "tail *": "allow",
+          "head *": "allow",
+          "cat *": "allow",
+          "grep *": "allow",
+          "wc *": "allow",
+          "ls *": "allow",
+          "find *": "allow",
+          "echo *": "allow",
+          "*>*tools/*": "deny",
+          "*>*source_references/*": "deny",
+          "*>*learning/pd/pd_skripte/*": "deny",
+          "*>*learning/pd/ddl/*": "deny",
+          "*>*skills/*": "deny",
+          "*>*docs/*": "deny",
+          "*>*reports/*": "deny",
+          "*>*memory/rules/*": "deny",
+          "*>*AGENTS.md*": "deny",
+          "*>*AGENTS_A.md*": "deny",
+          "*>*AGENTS_B.md*": "deny",
+          "*>*CLAUDE.md*": "deny",
+          "*>*opencode.jsonc*": "deny"
+        },
         "external_directory": "deny"
       }
     }
