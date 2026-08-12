@@ -47,7 +47,7 @@ erstmals echt (unaided) testen.
 | Objekt | Klasse | Runden (davon belastet) | Kosten gesamt | Erster Versuch G0/G1 sauber? | Finaler G0/G1-Status | Finaler G2-G5-Status | Autonomie unaided |
 |---|---|---|---|---|---|---|---|
 | PD KNZ 705.KNZ 705.sql | B | 2 (0) | $2,03 | Nein (Klasse-A-Bug in `render_dbt_models.py` gefunden, Bauherr-Infra-Fix, kein Content-Fix) | G0 12/12, G1 12/12 | **G0-G5 alle grün** | Ja |
-| PD LOAD.Bestandsuebernahme (fc/fa/azt, erste Serie) | C | 3 (1) | $0,65 | Teilweise (fc ok, fa/azt G1 grün aber inhaltlich falsch) | fc/fa/azt: alle grün | fc: **G0-G3+G5 alle grün** (via `tf_pd_knz_711`, Session 13); fa: **reopened (Session 14)** — Session-13-CAST-Fix für den Kalender-JOIN war ein verdeckter Bauherr-Content-Fix, zurückgenommen (`5e5c955`); G3 zeigt wieder `abweichende_spalten=mon_id,pd_anz_eingae` bei `tf_pd_knz_711`, dazu eine zweite, unabhängige `mon_id`-Regression aus Qwens `dedup=false`-Änderung (`c9c97c0`), deren eigene Selbstdiagnose ("vorbestehend") sich als falsch erwies; azt: **nur Direktprüfung, kein G2/G3 möglich** — Zeilenzahl (500=500) und Stichprobe wertgenau gegen die rohe CSV verifiziert, aber kein Skript im gesamten Korpus konsumiert `tf_deltant_pd_azt` (auch nicht in der Lineage als Quelle), also keine Referenzdatei und kein Downstream-Modell, das eine Gate-Prüfung ermöglichen würde — strukturell, nicht behebbar ohne Scope-Erweiterung | fc: ja, gate-bewiesen; fa: **offen (reopened)**, zwei reale Content-Fehler stehen jetzt zurecht als Qwen-Aufgabe an; azt: **inhaltlich plausibel** (Session 6 + Direktprüfung Session 13), aber nie gate-verifizierbar und das bleibt so, solange kein Konsument migriert wird |
+| PD LOAD.Bestandsuebernahme (fc/fa/azt, erste Serie) | C | 3 (1) | $0,65 | Teilweise (fc ok, fa/azt G1 grün aber inhaltlich falsch) | fc/fa/azt: alle grün | fc: **G0-G3+G5 alle grün** (via `tf_pd_knz_711`, Session 13); fa: **gelöst (5. Versuch, diese Session)** — Root Cause: `bi_load_date` wurde aus dem Dateinamen-Präfix (Inhaltsmonat) statt aus der `bi_timestamp`-Spalte der CSV (echter Lade-Zeitpunkt) abgeleitet, dadurch Off-by-one bei `mon_id_load_decr` und in Folge bei `mon_id`+`pd_anz_eingae`; Fix `c74a8c9`, gemergt `aa62bc1`, Bauherr-seitig auf `main` unabhängig nachverifiziert (`G2+G3 OK, 500 Zeilen, 7 Spalten`, `G5 OK`); vier vorherige Anläufe blockiert/regressiert (s. `ledger.jsonl` Einträge 2-3, plus ein undokumentierter 4. Versuch mit `next_month()`-Vorzeichenfehler), einer davon methodisch verworfen (Bauherr-Diagnose versehentlich in Prompt injiziert, komplett verworfen statt nur gemeldet) — 5. Versuch lief sauber, nur rohe G3-Zeilen als Input; azt: **nur Direktprüfung, kein G2/G3 möglich** — Zeilenzahl (500=500) und Stichprobe wertgenau gegen die rohe CSV verifiziert, aber kein Skript im gesamten Korpus konsumiert `tf_deltant_pd_azt` (auch nicht in der Lineage als Quelle), also keine Referenzdatei und kein Downstream-Modell, das eine Gate-Prüfung ermöglichen würde — strukturell, nicht behebbar ohne Scope-Erweiterung | fc: ja, gate-bewiesen; fa: **ja** — verifiziert autonomer Fund+Fix (`c74a8c9`), Root Cause von Qwen selbst gefunden, nicht vom Bauherr zugespielt; azt: **inhaltlich plausibel** (Session 6 + Direktprüfung Session 13), aber nie gate-verifizierbar und das bleibt so, solange kein Konsument migriert wird |
 | tf_deltant_pd_fa/azt (Multi-File-Adoption) | C (Infra-Adoption) | 6 (2) | ~$0,14 | Nein | **nie grün** | nie erreicht | **Nein** — 0/6, endgültig gescheitert (Session 9), 2 Runden davon durch Bauherr-Diagnose/`--auto`-Eingriff belastet |
 | PD KNZ 706.KNZ 706.sql | B | 4 (0) + 1 (Session 12) | $0,10 + $0,321 | Ja (im ersten echten Schreibversuch, Runde 3 — Runden 1-2 scheiterten an Harness-Permissions, nicht an Qwens Modell) | G0 13/13, G1 13/13 | **G0-G3 + G5 alle grün** (Session 12: fehlende Spalte `pd_auftr_id` ergänzt, UPDATE-Normalisierung als `LEFT JOIN`, eigene `memory/rules/pd_normalisierung_left_join.md` geschrieben) | **Ja** — verifiziert autonomer Commit (`b25d7a2`) |
 | PD KNZ 701.KNZ 701.sql | B | 3 (0) + 1 (Session 11) | $0,18 + $0,013 | Nein (korrelierte NOT-IN-in-CASE, von Exasol nicht unterstützt) | G0 15/15, G1 15/15 (nach Selbstkorrektur) | **G0-G3 + G5 alle grün** (Session 11: Tippfehler `pd_traeger_id`, 1 Runde) | **Ja** — erstes Objekt mit verifiziertem Selbst-Commit (`f490655`) |
@@ -58,21 +58,24 @@ erstmals echt (unaided) testen.
 
 ## Kennzahlen
 
-- **Autonomierate (vollständig G0-G5 grün, unaided):** 7/9 (78 %) —
-  705, 701, 706, 708, 702, 709, 703. Bestand-Serie (fc/fa/azt) seit
-  Session 14 aus dieser Zahl entfernt: der Session-13-"Vollerfolg" beruhte
-  auf einem zurückgenommenen Bauherr-Content-Fix, `tf_pd_knz_711` zeigt
-  aktuell wieder reale G3-Abweichungen (s. Datenäquivalenz-Quote unten).
-  709 und 703 kamen in Session 14 mit Hilfe einer Fachnotiz (s. `docs/
+- **Autonomierate (vollständig G0-G5 grün, unaided):** 8/9 (89 %) —
+  705, 701, 706, 708, 702, 709, 703, fa (`tf_pd_knz_711`). fc zählt
+  separat als bereits vorher gelöst mit; azt bleibt strukturell nicht
+  gate-verifizierbar und zählt nicht mit. fa kam im 5. Versuch der
+  Bestand-Serie zum vollständigen Erfolg — Root Cause (`bi_load_date`
+  aus `bi_timestamp` statt Dateiname) von Qwen selbst gefunden, nachdem
+  ein methodisch belasteter 4. Versuch (Bauherr-Diagnose versehentlich
+  in den Prompt gelangt) vollständig verworfen und sauber neu gestartet
+  wurde. 709 und 703 kamen in Session 14 mit Hilfe einer Fachnotiz (s. `docs/
   session14-fachnotiz-blindtest.md`) hinzu — die Notiz gab keine Lösung
   vor, schloss aber falsche Verdachte aus (bei 709 die Remap-Regel
   selbst, bei 703 implizit die inzwischen korrigierten Referenzdaten-
   Artefakte) und liess Qwen den jeweils echten Fehler eigenständig
   finden. 703 ist zudem das erste Objekt dieser Session, das *nie zuvor*
   angefasst wurde und im ersten echten Versuch (2 Runden, keine davon
-  belastet) durchlief. Von den sieben grünen Objekten sind 705s Commit
+  belastet) durchlief. Von den acht grünen Objekten ist 705s Commit
   vermutlich Bauherr-vermittelt (Permission-Lücke existierte damals
-  bereits), 701/706/708/702/709/703 sind die sechs Objekte mit
+  bereits), 701/706/708/702/709/703/fa sind die sieben Objekte mit
   *verifiziert* eigenständigem Commit-Schritt.
 - **First-Pass-Yield (G0/G1 sauber im allerersten echten,
   unbelasteten Versuch):** 2/7 zählbare Klasse-B/C-Erstversuche
@@ -94,19 +97,15 @@ erstmals echt (unaided) testen.
   Nutzerzustimmung) über die Schwelle hinaus versucht. Kein einziges
   Objekt hat sich selbst per `ledger.jsonl` als `blocked` gemeldet
   (s. `docs/session10-batch-run.md`, offene Frage).
-- **Datenäquivalenz-Quote (G2+G3 exakt erreicht):** 7/9 (78 %) — 705,
-  701, 706, 708, 702, 709, 703. Bestand-Serie zaehlt seit Session 14
-  NICHT mehr mit: der vermeintliche fc/fa-Vollerfolg aus Session 13
-  beruhte auf einem Bauherr-Content-Fix (Kalenderdimension-CAST), der
-  als methodischer Fehler zurückgenommen wurde — `tf_pd_knz_711` zeigt
-  aktuell wieder zwei reale, ungelöste G3-Abweichungen
-  (`mon_id`, `pd_anz_eingae`), s. `docs/session13-bestand-711-fixes.md`
-  Nachtrag Session 14. 709 und 703 sind seit Session 14 vollständig
-  exakt (s. Objekttabelle oben) — bei 703 nur nach Korrektur zweier
-  Referenzdaten-Artefakt-Spalten, s. `docs/datenlage.md` §5. Multi-File-
-  Adoption (fa/azt) bleibt ebenfalls offen — G1 inzwischen grün
-  (Qwen-Fix `c9c97c0`), G2/G3 aber jetzt aktiv wieder rot statt vorher
-  "nie erreicht".
+- **Datenäquivalenz-Quote (G2+G3 exakt erreicht):** 8/9 (89 %) — 705,
+  701, 706, 708, 702, 709, 703, fa. `tf_pd_knz_711` (fa) zeigt seit dem
+  5. Versuch (`c74a8c9`, gemergt `aa62bc1`) `G2+G3 OK (500 Zeilen,
+  7 Spalten)`, Bauherr-seitig auf `main` unabhängig nachverifiziert,
+  kein Regressionsschaden an den übrigen sieben Kennzahlen. 709 und 703
+  sind seit Session 14 vollständig exakt (s. Objekttabelle oben) — bei
+  703 nur nach Korrektur zweier Referenzdaten-Artefakt-Spalten, s. `docs/
+  datenlage.md` §5. azt bleibt strukturell nicht gate-verifizierbar
+  (kein Konsument im Korpus) und zählt nicht mit.
 - **Token-Kosten/Objekt:** stark gestreut ($0,084 bis $2,03), Median
   ≈ $0,18. Der teuerste Fall (705, $2,03) war der allererste Lauf des
   Projekts ohne jede Vorerfahrung/Regelgedächtnis — spätere Objekte
@@ -163,6 +162,19 @@ erstmals echt (unaided) testen.
   708 hat dasselbe LEFT-JOIN-Muster direkt wiederverwendet) — ein echter,
   wenn auch nicht randomisiert kontrollierter Beleg für wirkendes
   Regelgedächtnis über Objekte hinweg.
+- **Bestand/fa (KNZ 711): fünf Versuche bis zum Erfolg, davon einer
+  wegen Methodikverletzung komplett verworfen.** Der vierte Versuch
+  scheiterte nicht an Qwen, sondern daran, dass der Bauherr eine eigene
+  Diagnose ("Die Minutenpraezision ist zu aggressiv") versehentlich in
+  einen Fortsetzungs-Prompt schrieb, statt Qwen nur die rohen G3-Zeilen
+  zu geben. Die Runde wurde deshalb vollständig verworfen — inklusive
+  ansonsten korrekten Zwischenstands — statt die kontaminierte Erkenntnis
+  zu behalten. Der fünfte, saubere Versuch fand die tatsächliche Ursache
+  (Dateiname- statt Timestamp-Spalten-Ableitung) eigenständig. Das ist
+  methodisch der aussagekräftigste Einzelfall bisher: er zeigt sowohl,
+  dass unsaubere Bauherr-Hinweise die Autonomiemessung real verfälschen
+  können, als auch, dass Qwen bei rein faktischem Feedback denselben
+  (oder einen härteren) Fehler ohne Hinweis selbst lösen kann.
 
 ## Related
 `CLAUDE.md` (Ablationsdesign) · `docs/session5-qwen-run.md` ·
