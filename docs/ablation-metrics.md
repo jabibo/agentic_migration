@@ -162,6 +162,21 @@ erstmals echt (unaided) testen.
   708 hat dasselbe LEFT-JOIN-Muster direkt wiederverwendet) — ein echter,
   wenn auch nicht randomisiert kontrollierter Beleg für wirkendes
   Regelgedächtnis über Objekte hinweg.
+- **Fachnotizen (`source_references/pd/pd_skripte/*.md`) wurden erst in
+  einem einzigen Commit (`601fb1a`, 2026-08-10) angelegt — nicht von
+  Anfang an verfügbar.** Nachtrag (Nutzerhinweis, Session 15), per
+  `git log` exakt verortet: die Fix-Commits von 701 (`f490655`), 706
+  (`b25d7a2`), 708 (`66b5a29`) und 702 (`9492330`) liegen alle *vor*
+  `601fb1a` — vier der sieben verifiziert-autonomen Erfolge entstanden
+  also komplett ohne Dokumentationshilfe, reine Gate-Feedback-Loop-
+  Leistung. Nur 709s finaler Fix (`2486398`), 703 (`9e614d5`) und
+  KNZ-711/fa (`a1a6f94`/`c74a8c9`) hatten die Fachnotiz zur Verfügung —
+  und ausgerechnet das sind die beiden mit den meisten Iterationen (709:
+  8+ Runden, 711/fa: 5 Versuche), kein Sofort-Erfolg trotz Dokumentation.
+  Für den Setup-A/B/C-Vergleich (`docs/setup-a-b-vergleich.md`) heisst
+  das: KNZ 706 als Vergleichsobjekt bekäme im Trial mehr Ausstattung
+  (Fachnotiz) als der historische Setup-C-Lauf tatsächlich hatte —
+  dort vermerkt, nicht stillschweigend gleichgesetzt.
 - **Bestand/fa (KNZ 711): fünf Versuche bis zum Erfolg, davon einer
   wegen Methodikverletzung komplett verworfen.** Der vierte Versuch
   scheiterte nicht an Qwen, sondern daran, dass der Bauherr eine eigene

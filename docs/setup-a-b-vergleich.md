@@ -68,11 +68,24 @@ Drei bereits unter Setup C gelöste Objekte, quer über den Schwierigkeitsgrad
 `opencode run`-Session, kein `-s`-Fortsetzen) keine Erinnerung an vorige
 Läufe:
 
-| Objekt | Klasse | Setup-C-Historie | Warum |
-|---|---|---|---|
-| KNZ 703 | C | 2 Runden, First-Try-Erfolg, nie zuvor angefasst | Baseline/„einfacher" Fall |
-| KNZ 706 | B | mehrere echte Content-Bugs (Case-Mismatch, fehlende Spalte, LEFT-JOIN-Normalisierung) über 4+1 Runden | mittlerer Schwierigkeitsgrad, mehrere reale Fehlerklassen |
-| KNZ 709 | B | mit Abstand meiste Runden (8+), brauchte Fachnotiz-Hilfe | oberes Ende, testet ob Setup A/B ganz ohne Regelgedächtnis überhaupt konvergiert |
+| Objekt | Klasse | Setup-C-Historie | Fachnotiz beim historischen Lösen verfügbar? | Warum |
+|---|---|---|---|---|
+| KNZ 703 | C | 2 Runden, First-Try-Erfolg, nie zuvor angefasst | Ja (`9e614d5` nach `601fb1a`) | Baseline/„einfacher" Fall |
+| KNZ 706 | B | mehrere echte Content-Bugs (Case-Mismatch, fehlende Spalte, LEFT-JOIN-Normalisierung) über 4+1 Runden | **Nein** (`b25d7a2` vor `601fb1a`) | mittlerer Schwierigkeitsgrad, mehrere reale Fehlerklassen |
+| KNZ 709 | B | mit Abstand meiste Runden (8+), finaler Fix mit Fachnotiz-Hilfe | Teilweise — Großteil der Runden (Sessions 10/11) vor `601fb1a`, finaler Fix (`2486398`) danach | oberes Ende, testet ob Setup A/B ganz ohne Regelgedächtnis überhaupt konvergiert |
+
+**Wichtiger Vorbehalt (Nutzerhinweis, Session 15):** Alle drei Trials
+bekommen die Fachnotiz als konstantes Task-Material (s. o., „gegebenes
+Fachwissen"). Für 706 ist das historisch **großzügiger** als der reale
+Setup-C-Lauf, der `b25d7a2` komplett *ohne* Fachnotiz erreichte — vier
+der sieben verifiziert-autonomen Erfolge (701, 706, 708, 702) entstanden
+insgesamt ganz ohne Dokumentationshilfe, nur mit Gate-Feedback-Loop. Der
+706-Trial testet also nicht exakt dieselbe Ausgangslage wie der
+historische Lauf, sondern eine etwas leichtere. Bei der Auswertung
+festhalten, nicht stillschweigend gleichsetzen — ggf. 706 durch ein
+Objekt ersetzen, das *nie* ohne Fachnotiz gelöst wurde (703, 709), wenn
+strikte historische Vergleichbarkeit wichtiger ist als Schwierigkeitsgrad-
+Streuung.
 
 Zielmodell-Dateien für `ablation_trial_setup.sh`:
 - 703: `dbt/models/fact/tf_pd_knz_703.sql`
