@@ -176,6 +176,28 @@ erstmals echt (unaided) testen.
   können, als auch, dass Qwen bei rein faktischem Feedback denselben
   (oder einen härteren) Fehler ohne Hinweis selbst lösen kann.
 
+## Corpus-Abschluss (2026-08-12)
+
+Vollständige Prüfung aller 14 nicht-excludeten Objekte aus `reports/
+triage.md` (KNZ 721 war von Anfang an excluded, vollständig auskommentiert,
+kein aktiver Code — bleibt bei 14/15 zählbar):
+
+| Klasse | Objekte | Status |
+|---|---|---|
+| A (3) | KNZ 711, NEO_org_Zuordnung, unplausibler Fallabschluss | **alle erledigt** — schreiben in dieselben Ziele (`tf_pd_fa`, `tf_pd_fc`, `tt_deltant_pd_fc_org`), deterministisch per `render_dbt_models.py` gerendert, inhaltlich über die KNZ-709/711-Ketten mitverifiziert |
+| B (6) | 701, 702, 705, 706, 708, 709 | **alle erledigt** — G0-G5 grün |
+| C (5) | Bestandsuebernahme, KNZ 703, uf_pd_Behinderung_Key, Template Tables, vd_pd_KalenderMonat | **3/5 erledigt** (Bestandsuebernahme: fc/fa grün, azt strukturell nicht gate-fähig — kein Konsument im Korpus; KNZ 703 grün; uf_pd_Behinderung_Key als Makro `behinderung_bit()` in KNZ 709 absorbiert, über dessen grünen Status mitverifiziert). **2/5 strukturell kein Migrationsziel:** `Template Tables.sql` ist dynamisches DDL-Bootstrap für Rohdaten-Staging-Tabellen (Cursor über Dateiliste, `CREATE TABLE` je Dateinamens-Präfix) — diese Funktion übernimmt in diesem Repo bereits `tools/load_reference_data.sh` + die Delta-Makros, kein Kennzahl-/DWH-Inhalt, keine Referenzdaten zum Vergleichen; `vd_pd_KalenderMonat.sql` hat kein eigenes Schreibziel, delegiert nur an externe Prozeduren für OLAP-Cube-Views (`con_dim`-Schema), komplett außerhalb des hier migrierten DWH-Layers |
+
+**Ergebnis: der Kennzahl-/DWH-Migrationscorpus ist inhaltlich
+ausgeschöpft.** 12/14 Objekte migriert und gate-verifiziert (oder
+deterministisch/strukturell mitverifiziert), 2/14 sind keine echten
+Migrationsziele (Infra-Bootstrap bzw. Out-of-scope-Delegation), nicht
+„blocked" im Sinne von `ledger.jsonl` — es gibt für sie kein dbt-Modell
+zu bauen, gegen das G2/G3 sinnvoll prüfen könnte. Damit endet diese
+Versuchsserie ohne weiteres neues Zielobjekt; die verbleibende Arbeit an
+diesem Corpus ist Aufbereitung/Auswertung (Setup-A/C-Vergleich,
+Abschlussbericht), keine weiteren Einzelversuche.
+
 ## Related
 `CLAUDE.md` (Ablationsdesign) · `docs/session5-qwen-run.md` ·
 `docs/session6-bestand-run.md` · `docs/session8-architektur-review.md` ·
